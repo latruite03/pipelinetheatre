@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 import { loadFromCsv } from './connectors/csv.mjs'
 import { loadTheatreDuParc } from './connectors/theatreduparc.mjs'
+import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -16,6 +17,7 @@ function usage() {
 Usage:
   node src/run.mjs csv <path-to-csv>
   node src/run.mjs theatreduparc
+  node src/run.mjs enrich theatreduparc
 
 Env:
   SUPABASE_URL
@@ -48,6 +50,19 @@ async function main() {
     const res = await upsertRepresentations(reps)
     console.log(res)
     return
+  }
+
+  if (mode === 'enrich') {
+    const target = arg
+    if (target === 'theatreduparc') {
+      const dryRun = process.env.DO_IT !== '1'
+      const res = await enrichTheatreDuParc({ dryRun, maxChars: 300 })
+      console.log(res)
+      return
+    }
+
+    console.error(`Unknown enrich target: ${target}`)
+    process.exit(1)
   }
 
   console.error(`Unknown mode: ${mode}`)
