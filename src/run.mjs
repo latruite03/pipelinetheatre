@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { loadFromCsv } from './connectors/csv.mjs'
+import { loadTheatreDuParc } from './connectors/theatreduparc.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -14,6 +15,7 @@ function usage() {
 
 Usage:
   node src/run.mjs csv <path-to-csv>
+  node src/run.mjs theatreduparc
 
 Env:
   SUPABASE_URL
@@ -32,7 +34,16 @@ async function main() {
     }
     const filePath = path.resolve(process.cwd(), arg)
     const reps = await loadFromCsv({ filePath })
-    console.log(`Loaded ${reps.length} rows from CSV`) 
+    console.log(`Loaded ${reps.length} rows from CSV`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'theatreduparc') {
+    const reps = await loadTheatreDuParc({ limitEvents: 20 })
+    console.log(`Loaded ${reps.length} rows from Théâtre du Parc`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
