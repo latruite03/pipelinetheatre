@@ -101,11 +101,11 @@ function parseDateTokens(text) {
   return out
 }
 
-function guessYear(month) {
-  // Heuristic for season in Brussels: if month is 01-06, assume 2026; else assume 2025.
-  // Adjust later if needed.
+function guessYearOrNull(month) {
+  // For now we stop at June 2026 (no next season ingestion).
   const m = Number(month)
-  return m <= 6 ? '2026' : '2025'
+  if (m >= 1 && m <= 6) return '2026'
+  return null
 }
 
 function extractUsefulText(html) {
@@ -115,14 +115,34 @@ function extractUsefulText(html) {
 }
 
 function extractDescription(html) {
-  const afterH1 = /<h1[\s\S]*?<\/h1>([\s\S]{0,8000})/i.exec(html)?.[1] || ''
-  const p = pickFirst(/<p[^>]*>([\s\S]*?)<\/p>/i, afterH1)
-  if (!p) return null
-  const t = stripTags(decodeHtmlEntities(p))
-  if (!t) return null
-  // Skip obvious date-only paragraphs
-  if (/\ble\s+\d{1,2}\s+\w+\s+\d{1,2}h/i.test(t)) return null
-  return t
+  const afterH1 = /<h1[\s\S]*?<\/h1>([\s\S]{0,20000})/i.exec(html)?.[1] || ''
+
+  // Collect a handful of paragraphs and pick the first that looks like a pitch.
+  const ps = []
+  const reP = /<p[^>]*>([\s\S]*?)<\/p>/gi
+  let m
+  while ((m = reP.exec(afterH1)) && ps.length < 12) {
+    const t = stripTags(decodeHtmlEntities(m[1]))
+    if (t) ps.push(t)
+  }
+
+  const looksLikeDates = (t) => {
+    const s = stripDiacritics(t).toLowerCase()
+    // typical patterns: "le 12 février à 18h00", "les 12 et 13 février", "du 3 au 7 mars"
+    if (/\ble\s+\d{1,2}\s+\w+\s+a\s+\d{1,2}h/.test(s)) return true
+    if (/\bles\s+\d{1,2}(\s*,\s*\d{1,2})*(\s+et\s+\d{1,2})?\s+\w+/.test(s) && s.includes('h')) return true
+    if (/\bdu\s+\d{1,2}\s+au\s+\d{1,2}\s+\w+/.test(s)) return true
+    if (s.includes('reserver') || s.includes('réserver')) return true
+    return false
+  }
+
+  for (const t of ps) {
+    if (looksLikeDates(t)) continue
+    if (t.length < 80) continue
+    return t
+  }
+
+  return null
 }
 
 export async function loadBalsamine({ limitPosts = 10 } = {}) {
@@ -147,7 +167,8 @@ export async function loadBalsamine({ limitPosts = 10 } = {}) {
 
     // If no explicit dates found, skip (we can improve later)
     for (const d of dates) {
-      const year = guessYear(d.month)
+      const year = guessYearOrNull(d.month)
+      if (!year) continue
       const date = `${year}-${d.month}-${d.day}`
       const heure = d.time
 
