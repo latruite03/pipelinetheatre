@@ -89,24 +89,36 @@ function parsePoster(html) {
   return m ? decodeHtmlEntities(m[1]) : null
 }
 
-function parseDateStarts(html) {
-  // Example: <input type="hidden" name="date_start" value="2026-02-25 06:00PM">
-  const dates = []
-  const re = /name="date_start"\s+value="(\d{4}-\d{2}-\d{2})\s+(\d{1,2}):(\d{2})(AM|PM)"/gi
+function parseOccurrencesFromSpans(html) {
+  // Preferred: displayed hours are correct (hidden date_start seems shifted by -2h).
+  // Example snippet:
+  // <span class="date ...">JE&nbsp;<strong>26&nbsp;FÉV</strong></span><span class="heure ...">19:15</span>
+  const MONTH = {
+    JANV: '01',
+    FEV: '02',
+    FÉV: '02',
+    MARS: '03',
+    AVR: '04',
+    MAI: '05',
+    JUIN: '06',
+  }
+
+  const out = []
+  const re = /<span class="date[^>]*">[A-Z]{2,3}&nbsp;<strong>(\d{1,2})&nbsp;([A-ZÉ]{3,4})<\/strong><\/span>\s*<span class="heure[^>]*">(\d{1,2}):(\d{2})<\/span>/g
   let m
   while ((m = re.exec(html))) {
-    const date = m[1]
-    let hh = Number(m[2])
-    const mm = m[3]
-    const ap = m[4]
+    const day = String(m[1]).padStart(2, '0')
+    const monKey = m[2]
+    const month = MONTH[monKey]
+    if (!month) continue
 
-    if (ap === 'PM' && hh !== 12) hh += 12
-    if (ap === 'AM' && hh === 12) hh = 0
+    const hh = String(m[3]).padStart(2, '0')
+    const mm = String(m[4]).padStart(2, '0')
 
-    const heure = `${String(hh).padStart(2, '0')}:${mm}:00`
-    dates.push({ date, heure })
+    out.push({ date: `2026-${month}-${day}`, heure: `${hh}:${mm}:00` })
   }
-  return dates
+
+  return out
 }
 
 function isInRange(dateStr) {
@@ -135,7 +147,7 @@ export async function loadEspaceMagh({ months = MONTHS } = {}) {
     const description = parseDescription(html)
     const image_url = parsePoster(html)
 
-    const occurrences = parseDateStarts(html)
+    const occurrences = parseOccurrencesFromSpans(html)
       .filter((d) => isInRange(d.date))
 
     for (const occ of occurrences) {
