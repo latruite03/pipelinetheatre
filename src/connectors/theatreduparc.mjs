@@ -103,7 +103,7 @@ export async function loadTheatreDuParc({ limitEvents = 10 } = {}) {
         genre: null,
         style: null,
         description,
-        image_url,
+        ...(image_url ? { image_url } : {}),
       }
       rep.fingerprint = computeFingerprint(rep)
       reps.push(rep)

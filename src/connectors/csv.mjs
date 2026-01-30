@@ -32,7 +32,7 @@ export async function loadFromCsv({
       genre: normalizeGenre(r.genre),
       style: normalizeStyle(r.style),
       description: r.description || null,
-      image_url: r.image_url || null,
+      ...(r.image_url ? { image_url: r.image_url } : {}),
     }
 
     rep.fingerprint = computeFingerprint(rep)
