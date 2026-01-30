@@ -7,6 +7,7 @@ import { loadFromCsv } from './connectors/csv.mjs'
 import { loadTheatreDuParc } from './connectors/theatreduparc.mjs'
 import { loadBalsamine } from './connectors/balsamine.mjs'
 import { loadEspaceMagh } from './connectors/espacemagh.mjs'
+import { loadRichesClaires } from './connectors/richesclaires.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
 
@@ -21,6 +22,7 @@ Usage:
   node src/run.mjs theatreduparc
   node src/run.mjs balsamine
   node src/run.mjs espacemagh
+  node src/run.mjs richesclaires
   node src/run.mjs enrich theatreduparc
 
 Env:
@@ -68,6 +70,15 @@ async function main() {
   if (mode === 'espacemagh') {
     const reps = await loadEspaceMagh()
     console.log(`Loaded ${reps.length} rows from Espace Magh`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'richesclaires') {
+    const reps = await loadRichesClaires()
+    console.log(`Loaded ${reps.length} rows from Les Riches-Claires (theatre only)`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
