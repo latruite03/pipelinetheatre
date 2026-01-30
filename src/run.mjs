@@ -9,6 +9,7 @@ import { loadBalsamine } from './connectors/balsamine.mjs'
 import { loadEspaceMagh } from './connectors/espacemagh.mjs'
 import { loadRichesClaires } from './connectors/richesclaires.mjs'
 import { loadMercelisIxelles } from './connectors/mercelis_ixelles.mjs'
+import { loadCreaNova } from './connectors/creanova.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
 
@@ -25,6 +26,7 @@ Usage:
   node src/run.mjs espacemagh
   node src/run.mjs richesclaires
   node src/run.mjs mercelis
+  node src/run.mjs creanova
   node src/run.mjs enrich theatreduparc
 
 Env:
@@ -90,6 +92,15 @@ async function main() {
   if (mode === 'mercelis') {
     const reps = await loadMercelisIxelles()
     console.log(`Loaded ${reps.length} rows from Théâtre Mercelis (Ixelles)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'creanova') {
+    const reps = await loadCreaNova()
+    console.log(`Loaded ${reps.length} rows from Théâtre CreaNova (Strategy A)`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
