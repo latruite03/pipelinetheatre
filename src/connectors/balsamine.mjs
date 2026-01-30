@@ -1,0 +1,174 @@
+import fetch from 'node-fetch'
+import { computeFingerprint, stripDiacritics } from '../lib/normalize.mjs'
+
+const SOURCE = 'balsamine'
+const BASE = 'https://balsamine.be'
+
+const MONTHS = {
+  janvier: '01',
+  fevrier: '02',
+  février: '02',
+  mars: '03',
+  avril: '04',
+  mai: '05',
+  juin: '06',
+  juillet: '07',
+  aout: '08',
+  août: '08',
+  septembre: '09',
+  octobre: '10',
+  novembre: '11',
+  decembre: '12',
+  décembre: '12',
+}
+
+function decodeHtmlEntities(s) {
+  return (s || '')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+}
+
+function stripTags(s) {
+  return (s || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+function pickFirst(re, text) {
+  const m = re.exec(text)
+  return m ? m[1] : null
+}
+
+function parsePostUrls(html) {
+  const urls = new Set()
+  const re = /href="(https:\/\/balsamine\.be\/balsa_post\/[^"]+?)"/gi
+  let m
+  while ((m = re.exec(html))) {
+    const u = m[1].replace(/'$/, '')
+    if (!u.includes('/balsa_post/')) continue
+    urls.add(u.endsWith('/') ? u : u + '/')
+  }
+  return Array.from(urls)
+}
+
+function parseTitle(html) {
+  const h1 = pickFirst(/<h1[^>]*>([\s\S]*?)<\/h1>/i, html)
+  if (h1) return stripTags(decodeHtmlEntities(h1))
+  const og = pickFirst(/<meta property="og:title" content="([^"]+)"/i, html)
+  if (og) return og.replace(/\s*\|\s*la Balsamine\s*$/i, '').trim()
+  return null
+}
+
+function parsePoster(html) {
+  return pickFirst(/<meta property="og:image" content="([^"]+)"/i, html)
+}
+
+function parseBookingUrl(html) {
+  // Try Ticketmatic links
+  const m = /href="(https:\/\/apps\.ticketmatic\.com\/[^"]+)"[^>]*>\s*r[ée]server/iu.exec(html)
+  if (m) return decodeHtmlEntities(m[1])
+  return null
+}
+
+function parseDateTokens(text) {
+  const t = stripDiacritics(text).toLowerCase()
+  // Returns array of {day, monthName, time?}
+  const out = []
+
+  // pattern: le 12 fevrier a 18h00
+  const reSingle = /\ble\s+(\d{1,2})\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\s+a\s+(\d{1,2})h(\d{2})?/g
+  let m
+  while ((m = reSingle.exec(t))) {
+    const day = String(m[1]).padStart(2, '0')
+    const month = MONTHS[m[2]]
+    const hh = String(m[3]).padStart(2, '0')
+    const mm = m[4] ? String(m[4]).padStart(2, '0') : '00'
+    out.push({ day, month, time: `${hh}:${mm}:00` })
+  }
+
+  // pattern: du 3 au 7 mars
+  const reRange = /\bdu\s+(\d{1,2})\s+au\s+(\d{1,2})\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\b/g
+  while ((m = reRange.exec(t))) {
+    const start = Number(m[1])
+    const end = Number(m[2])
+    const month = MONTHS[m[3]]
+    for (let d = start; d <= end; d++) {
+      out.push({ day: String(d).padStart(2, '0'), month, time: null })
+    }
+  }
+
+  return out
+}
+
+function guessYear(month) {
+  // Heuristic for season in Brussels: if month is 01-06, assume 2026; else assume 2025.
+  // Adjust later if needed.
+  const m = Number(month)
+  return m <= 6 ? '2026' : '2025'
+}
+
+function extractUsefulText(html) {
+  // Focus around title area where dates are displayed
+  const afterH1 = /<h1[\s\S]*?<\/h1>([\s\S]{0,4000})/i.exec(html)?.[1] || html
+  return stripTags(decodeHtmlEntities(afterH1))
+}
+
+function extractDescription(html) {
+  const afterH1 = /<h1[\s\S]*?<\/h1>([\s\S]{0,8000})/i.exec(html)?.[1] || ''
+  const p = pickFirst(/<p[^>]*>([\s\S]*?)<\/p>/i, afterH1)
+  if (!p) return null
+  const t = stripTags(decodeHtmlEntities(p))
+  if (!t) return null
+  // Skip obvious date-only paragraphs
+  if (/\ble\s+\d{1,2}\s+\w+\s+\d{1,2}h/i.test(t)) return null
+  return t
+}
+
+export async function loadBalsamine({ limitPosts = 10 } = {}) {
+  const progUrl = `${BASE}/programmation/`
+  const html = await (await fetch(progUrl)).text()
+  const postUrls = parsePostUrls(html).slice(0, limitPosts)
+
+  const theatre_nom = 'Théâtre la Balsamine'
+  const theatre_adresse = 'Avenue Félix Marchal 1, 1030 Schaerbeek'
+
+  const reps = []
+
+  for (const postUrl of postUrls) {
+    const postHtml = await (await fetch(postUrl)).text()
+    const titre = parseTitle(postHtml) || postUrl
+    const image_url = parsePoster(postHtml)
+    const description = extractDescription(postHtml)
+    const booking = parseBookingUrl(postHtml)
+
+    const text = extractUsefulText(postHtml)
+    const dates = parseDateTokens(text)
+
+    // If no explicit dates found, skip (we can improve later)
+    for (const d of dates) {
+      const year = guessYear(d.month)
+      const date = `${year}-${d.month}-${d.day}`
+      const heure = d.time
+
+      const rep = {
+        source: SOURCE,
+        source_url: postUrl,
+        date,
+        heure,
+        titre,
+        theatre_nom,
+        theatre_adresse,
+        url: booking || postUrl,
+        genre: null,
+        style: null,
+        ...(description ? { description } : {}),
+        ...(image_url ? { image_url } : {}),
+      }
+      rep.fingerprint = computeFingerprint(rep)
+      reps.push(rep)
+    }
+  }
+
+  return reps
+}
