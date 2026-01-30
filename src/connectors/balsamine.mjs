@@ -115,13 +115,18 @@ function extractUsefulText(html) {
 }
 
 function extractDescription(html) {
-  const afterH1 = /<h1[\s\S]*?<\/h1>([\s\S]{0,20000})/i.exec(html)?.[1] || ''
+  let afterH1 = /<h1[\s\S]*?<\/h1>([\s\S]{0,25000})/i.exec(html)?.[1] || ''
+
+  // Drop style/script blocks: otherwise their raw CSS/JS can leak into text.
+  afterH1 = afterH1
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
 
   // Collect a handful of paragraphs and pick the first that looks like a pitch.
   const ps = []
   const reP = /<p[^>]*>([\s\S]*?)<\/p>/gi
   let m
-  while ((m = reP.exec(afterH1)) && ps.length < 12) {
+  while ((m = reP.exec(afterH1)) && ps.length < 20) {
     const t = stripTags(decodeHtmlEntities(m[1]))
     if (t) ps.push(t)
   }
@@ -136,8 +141,18 @@ function extractDescription(html) {
     return false
   }
 
+  const looksLikeCss = (t) => {
+    const s = stripDiacritics(t).toLowerCase()
+    // Heuristics for CSS blobs
+    if (t.includes('{') && t.includes('}')) return true
+    if (s.includes('position:') || s.includes('font-size:') || s.includes('background:')) return true
+    if (s.includes('#cob-') || s.includes('.cob-')) return true
+    return false
+  }
+
   for (const t of ps) {
     if (looksLikeDates(t)) continue
+    if (looksLikeCss(t)) continue
     if (t.length < 80) continue
     return t
   }
