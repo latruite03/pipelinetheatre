@@ -13,6 +13,7 @@ import { loadCreaNova } from './connectors/creanova.mjs'
 import { loadAuditoriumJacquesBrel } from './connectors/auditoriumjbrel.mjs'
 import { loadZinnema } from './connectors/zinnema.mjs'
 import { loadCCAuderghem } from './connectors/ccauderghem.mjs'
+import { loadArchipel19 } from './connectors/archipel19.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
 
@@ -33,6 +34,7 @@ Usage:
   node src/run.mjs auditoriumjbrel
   node src/run.mjs zinnema
   node src/run.mjs ccauderghem
+  node src/run.mjs archipel19
   node src/run.mjs enrich theatreduparc
 
 Env:
@@ -134,6 +136,15 @@ async function main() {
   if (mode === 'ccauderghem') {
     const reps = await loadCCAuderghem()
     console.log(`Loaded ${reps.length} rows from Centre culturel d’Auderghem (CCA) (theatre only)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'archipel19') {
+    const reps = await loadArchipel19()
+    console.log(`Loaded ${reps.length} rows from Archipel 19 – Le Fourquet (Spectacles category)`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
