@@ -18,6 +18,7 @@ import { loadTheatreNational } from './connectors/theatrenational.mjs'
 import { loadKVS } from './connectors/kvs.mjs'
 import { loadTRG } from './connectors/trg.mjs'
 import { loadMartyrs } from './connectors/martyrs.mjs'
+import { loadToone } from './connectors/toone.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
 
@@ -43,6 +44,7 @@ Usage:
   node src/run.mjs kvs
   node src/run.mjs trg
   node src/run.mjs martyrs
+  node src/run.mjs toone
   node src/run.mjs enrich theatreduparc
 
 Env:
@@ -189,6 +191,15 @@ async function main() {
   if (mode === 'martyrs') {
     const reps = await loadMartyrs()
     console.log(`Loaded ${reps.length} rows from Théâtre des Martyrs`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'toone') {
+    const reps = await loadToone()
+    console.log(`Loaded ${reps.length} rows from Théâtre Royal de Toone`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
