@@ -29,6 +29,8 @@ function decodeHtmlEntities(s) {
     .replace(/&icirc;/gi, 'î')
     .replace(/&ocirc;/gi, 'ô')
     .replace(/&uuml;/gi, 'ü')
+    .replace(/&ndash;/gi, '–')
+    .replace(/&mdash;/gi, '—')
 }
 
 function stripTags(s) {
@@ -58,11 +60,23 @@ function parseAgendaEventUrls(html) {
 }
 
 function parseTitle(html) {
-  // <meta property="og:image:alt" content="Copyriot" /> exists
-  const m = /<meta property="og:image:alt" content="([^"]+)"/i.exec(html)
-  if (m) return stripTags(m[1])
+  // KVS pages contain cookie/consent modals with <h1>"Deze website gebruikt cookies".
+  // Using the first <h1> is unreliable; og:title is consistent for events.
+  const og = /<meta property="og:title" content="([^"]+)"/i.exec(html)
+  if (og) {
+    const t = stripTags(og[1])
+    // og:title format: "NOOIT NOOIT – ... | ..." → keep leftmost title.
+    return t.split('|')[0].split('–')[0].split('—')[0].trim()
+  }
+
   const m2 = /<h1[^>]*>([\s\S]*?)<\/h1>/i.exec(html)
-  return m2 ? stripTags(m2[1]) : null
+  if (m2) {
+    const t = stripTags(m2[1])
+    if (!/cookies/i.test(t)) return t
+  }
+
+  const m3 = /<title>([\s\S]*?)<\/title>/i.exec(html)
+  return m3 ? stripTags(m3[1]).split('|')[0].split('–')[0].split('—')[0].trim() : null
 }
 
 function parseImage(html) {
