@@ -19,6 +19,7 @@ import { loadKVS } from './connectors/kvs.mjs'
 import { loadTRG } from './connectors/trg.mjs'
 import { loadMartyrs } from './connectors/martyrs.mjs'
 import { loadToone } from './connectors/toone.mjs'
+import { loadPoche } from './connectors/poche.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
 
@@ -45,6 +46,7 @@ Usage:
   node src/run.mjs trg
   node src/run.mjs martyrs
   node src/run.mjs toone
+  node src/run.mjs poche
   node src/run.mjs enrich theatreduparc
 
 Env:
@@ -200,6 +202,15 @@ async function main() {
   if (mode === 'toone') {
     const reps = await loadToone()
     console.log(`Loaded ${reps.length} rows from Théâtre Royal de Toone`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'poche') {
+    const reps = await loadPoche()
+    console.log(`Loaded ${reps.length} rows from Théâtre de Poche Bruxelles`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
