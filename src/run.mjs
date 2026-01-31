@@ -14,6 +14,7 @@ import { loadAuditoriumJacquesBrel } from './connectors/auditoriumjbrel.mjs'
 import { loadZinnema } from './connectors/zinnema.mjs'
 import { loadCCAuderghem } from './connectors/ccauderghem.mjs'
 import { loadArchipel19 } from './connectors/archipel19.mjs'
+import { loadTheatreNational } from './connectors/theatrenational.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
 
@@ -35,6 +36,7 @@ Usage:
   node src/run.mjs zinnema
   node src/run.mjs ccauderghem
   node src/run.mjs archipel19
+  node src/run.mjs theatrenational
   node src/run.mjs enrich theatreduparc
 
 Env:
@@ -151,7 +153,16 @@ async function main() {
     return
   }
 
-  if (mode === 'enrich') {
+  if (mode === 'theatrenational') {
+    const reps = await loadTheatreNational()
+    console.log(`Loaded ${reps.length} rows from Théâtre National Wallonie-Bruxelles (theatre only)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'enrich') { 
     const target = arg
     if (target === 'theatreduparc') {
       const dryRun = process.env.DO_IT !== '1'
