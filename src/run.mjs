@@ -22,6 +22,7 @@ import { loadToone } from './connectors/toone.mjs'
 import { loadPoche } from './connectors/poche.mjs'
 import { loadTanneurs } from './connectors/tanneurs.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
+import { enrichGenreStyle } from './enrich/genreStyle.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -50,6 +51,7 @@ Usage:
   node src/run.mjs poche
   node src/run.mjs tanneurs
   node src/run.mjs enrich theatreduparc
+  node src/run.mjs enrich genrestyle
 
 Env:
   SUPABASE_URL
@@ -233,6 +235,14 @@ async function main() {
     if (target === 'theatreduparc') {
       const dryRun = process.env.DO_IT !== '1'
       const res = await enrichTheatreDuParc({ dryRun, maxChars: 300 })
+      console.log(res)
+      return
+    }
+
+    if (target === 'genrestyle') {
+      const dryRun = process.env.DO_IT !== '1'
+      const limit = process.env.LIMIT ? Number(process.env.LIMIT) : null
+      const res = await enrichGenreStyle({ dryRun, limit })
       console.log(res)
       return
     }
