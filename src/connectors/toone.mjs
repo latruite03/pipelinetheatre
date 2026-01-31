@@ -59,9 +59,9 @@ export async function loadToone() {
     const titre = data.details.nom || 'Spectacle'
     const image_url = `${BASE}/images/spectacles/${data.details.ID}.jpg`
 
-    const sdesc = stripTags(data.details.sdesc)
+    // sdesc is mostly a date range (already shown elsewhere), so we exclude it.
     const desc = stripTags(data.details.description)
-    const description = [sdesc, desc].filter(Boolean).join(' — ').slice(0, 320) || null
+    const description = (desc || '').slice(0, 320) || null
 
     const dates = Array.isArray(data.listeventdate) ? data.listeventdate : []
 
