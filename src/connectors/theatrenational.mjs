@@ -99,6 +99,11 @@ function parseProgramItems(html) {
   return out
 }
 
+function parseOgImage(activityHtml) {
+  const m = /<meta property="og:image" content="([^"]+)"/i.exec(activityHtml)
+  return m ? m[1] : null
+}
+
 function parseCalendarDateTimes(activityHtml) {
   // Calendar block contains repeated:
   // <time datetime="2026-02-03">...</time> - 20:00
@@ -136,6 +141,7 @@ export async function loadTheatreNational() {
 
   for (const it of items) {
     const activityHtml = await (await fetch(it.url, FETCH_OPTS)).text()
+    const image_url = parseOgImage(activityHtml)
     const dts = parseCalendarDateTimes(activityHtml)
 
     for (const dt of dts) {
@@ -152,6 +158,7 @@ export async function loadTheatreNational() {
         url: it.url,
         genre: null,
         style: null,
+        ...(image_url ? { image_url } : {}),
       }
 
       rep.fingerprint = computeFingerprint(rep)
