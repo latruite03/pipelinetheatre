@@ -134,6 +134,48 @@ function dateRangeToDates(start, end) {
   return out
 }
 
+function parseUtickSeriesUrl(html) {
+  const m = html.match(
+    /https?:\/\/shop\.utick\.(?:net|be)\/?\?[^"'\s>]*module=ACTIVITYSERIEDETAILS[^"'\s>]*s=[0-9A-F-]{36}/i
+  )
+  if (!m) return null
+  // HTML has &amp; entities
+  return m[0].replace(/&amp;/g, '&')
+}
+
+function parseUtickDates(utickHtml) {
+  // Rows look like:
+  // <a href="?q=...&module=QUANTITY">Le mercredi 4 février 2026</a>
+  // time in next <td> like 19:30
+  // and either a reserve link or a <div ...>Complet</div>
+  const out = []
+  const rowRe = /<tr>[\s\S]*?<td>\s*<a[^>]*>([^<]+)<\/a>[\s\S]*?<td>\s*([0-9]{2}:[0-9]{2})[\s\S]*?<\/tr>/gi
+  let m
+  while ((m = rowRe.exec(utickHtml))) {
+    const label = stripTags(m[1])
+    const time = m[2]
+    const lower = stripDiacritics(label).toLowerCase()
+    // Extract "4 février 2026"
+    const dm = /\b(\d{1,2})\s+([a-zéû]+)\s+(\d{4})\b/i.exec(lower)
+    if (!dm) continue
+    const dd = String(dm[1]).padStart(2, '0')
+    const month = MONTHS[stripDiacritics(dm[2]).toLowerCase()] || MONTHS[dm[2].toLowerCase()]
+    const yyyy = dm[3]
+    if (!month) continue
+    const date = `${yyyy}-${month}-${dd}`
+
+    const trBlock = m[0]
+    const is_complet = /Complet/i.test(trBlock)
+
+    // reservation link when available
+    const rm = /href="(\?q=[^"]+module=QUANTITY[^"]*)"/i.exec(trBlock)
+    const reserveUrl = rm ? `https://shop.utick.net/${rm[1].replace(/&amp;/g, '&')}` : null
+
+    out.push({ date, heure: `${time}:00`, is_complet, reserveUrl })
+  }
+  return out
+}
+
 export async function loadPoche() {
   const homeHtml = await (await fetch(HOME, FETCH_OPTS)).text()
   const showUrls = parseShowLinks(homeHtml)
@@ -150,20 +192,43 @@ export async function loadPoche() {
     const image_url = parseOgImage(html)
     const description = parseMetaDescription(html)
 
+    const utickUrl = parseUtickSeriesUrl(html)
+
+    if (utickUrl) {
+      const utickHtml = await (await fetch(utickUrl, FETCH_OPTS)).text()
+      const utickDates = parseUtickDates(utickHtml)
+
+      for (const dt of utickDates) {
+        if (!inRange(dt.date)) continue
+
+        const rep = {
+          source: SOURCE,
+          source_url: url,
+          date: dt.date,
+          heure: dt.heure,
+          titre,
+          theatre_nom,
+          theatre_adresse,
+          url: dt.reserveUrl || utickUrl,
+          is_complet: !!dt.is_complet,
+          genre: null,
+          style: null,
+          ...(image_url ? { image_url } : {}),
+          ...(description ? { description } : {}),
+        }
+
+        rep.fingerprint = computeFingerprint(rep)
+        reps.push(rep)
+      }
+
+      continue
+    }
+
+    // Fallback: no Utick link found → keep old behavior (date range without per-date times)
     const range = parseDateRangeFromOgTitle(html)
     if (!range) continue
 
     const dates = dateRangeToDates(range.start, range.end)
-
-    // Poche does not list per-date times, but mentions a rule on show pages:
-    // "les mercredis et jeudis le spectacle joue à 19h30". We apply that rule.
-    function guessHeure(dateStr) {
-      const d = new Date(dateStr + 'T00:00:00Z')
-      const dow = d.getUTCDay() // 0=Sun .. 6=Sat
-      if (dow === 3 || dow === 4) return '19:30:00' // Wed/Thu
-      // Default: unknown
-      return null
-    }
 
     for (const date of dates) {
       if (!inRange(date)) continue
@@ -172,11 +237,12 @@ export async function loadPoche() {
         source: SOURCE,
         source_url: url,
         date,
-        heure: guessHeure(date),
+        heure: null,
         titre,
         theatre_nom,
         theatre_adresse,
         url,
+        is_complet: false,
         genre: null,
         style: null,
         ...(image_url ? { image_url } : {}),
