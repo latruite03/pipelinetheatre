@@ -16,6 +16,7 @@ import { loadCCAuderghem } from './connectors/ccauderghem.mjs'
 import { loadArchipel19 } from './connectors/archipel19.mjs'
 import { loadTheatreNational } from './connectors/theatrenational.mjs'
 import { loadKVS } from './connectors/kvs.mjs'
+import { loadTRG } from './connectors/trg.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
 
@@ -39,6 +40,7 @@ Usage:
   node src/run.mjs archipel19
   node src/run.mjs theatrenational
   node src/run.mjs kvs
+  node src/run.mjs trg
   node src/run.mjs enrich theatreduparc
 
 Env:
@@ -167,6 +169,15 @@ async function main() {
   if (mode === 'kvs') {
     const reps = await loadKVS()
     console.log(`Loaded ${reps.length} rows from KVS (theatre only)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'trg') {
+    const reps = await loadTRG()
+    console.log(`Loaded ${reps.length} rows from Théâtre Royal des Galeries`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
