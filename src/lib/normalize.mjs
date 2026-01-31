@@ -40,7 +40,10 @@ export function normalizeGenre(value) {
   if (v === 'comedie' || v === 'drame' || v === 'autre') return v
   if (v.includes('com')) return 'comedie'
   if (v.includes('dram') || v.includes('trag')) return 'drame'
-  if (v.includes('jeune public') || v.includes('experimental') || v.includes('inclassable')) return 'autre'
+  // DB constraint currently only allows (comedie|drame|autre).
+  // We keep "jeune public" as a derived UI tag for now.
+  if (v.includes('jeune public') || v.includes('jeunepublic') || v.includes('familial') || v.includes('enfant')) return 'autre'
+  if (v.includes('experimental') || v.includes('inclassable')) return 'autre'
   return null
 }
 
