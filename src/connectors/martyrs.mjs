@@ -66,7 +66,23 @@ function parseTitle(html) {
 
 function parseOgImage(html) {
   const m = /<meta property="og:image" content="([^"]+)"/i.exec(html)
-  return m ? toAbsUrl(m[1]) : null
+  if (m) return toAbsUrl(m[1])
+
+  // Fallback: some show pages don't expose og:image; pick a reasonable poster/banner.
+  // Avoid logos/favicons/cropped assets.
+  const candidates = Array.from(
+    html.matchAll(/https:\/\/theatre-martyrs\.be\/wp-content\/uploads\/[a-zA-Z0-9_\/-]+\.(?:jpg|jpeg|png|webp)/g)
+  ).map((x) => x[0])
+
+  for (const u of candidates) {
+    const s = u.toLowerCase()
+    if (s.includes('cropped-')) continue
+    if (s.includes('favicon')) continue
+    if (s.includes('logo')) continue
+    return u
+  }
+
+  return null
 }
 
 function parseDescription(html) {
