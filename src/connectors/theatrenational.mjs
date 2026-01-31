@@ -104,6 +104,13 @@ function parseOgImage(activityHtml) {
   return m ? m[1] : null
 }
 
+function parseMetaDescription(activityHtml) {
+  const m = /<meta name="description" content="([^"]+)"/i.exec(activityHtml)
+  if (m) return cleanText(m[1])
+  const m2 = /<meta property="og:description" content="([^"]+)"/i.exec(activityHtml)
+  return m2 ? cleanText(m2[1]) : null
+}
+
 function parseCalendarDateTimes(activityHtml) {
   // Calendar block contains repeated:
   // <time datetime="2026-02-03">...</time> - 20:00
@@ -142,6 +149,7 @@ export async function loadTheatreNational() {
   for (const it of items) {
     const activityHtml = await (await fetch(it.url, FETCH_OPTS)).text()
     const image_url = parseOgImage(activityHtml)
+    const description = parseMetaDescription(activityHtml)
     const dts = parseCalendarDateTimes(activityHtml)
 
     for (const dt of dts) {
@@ -159,6 +167,7 @@ export async function loadTheatreNational() {
         genre: null,
         style: null,
         ...(image_url ? { image_url } : {}),
+        ...(description ? { description } : {}),
       }
 
       rep.fingerprint = computeFingerprint(rep)
