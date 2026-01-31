@@ -154,6 +154,17 @@ export async function loadPoche() {
     if (!range) continue
 
     const dates = dateRangeToDates(range.start, range.end)
+
+    // Poche does not list per-date times, but mentions a rule on show pages:
+    // "les mercredis et jeudis le spectacle joue à 19h30". We apply that rule.
+    function guessHeure(dateStr) {
+      const d = new Date(dateStr + 'T00:00:00Z')
+      const dow = d.getUTCDay() // 0=Sun .. 6=Sat
+      if (dow === 3 || dow === 4) return '19:30:00' // Wed/Thu
+      // Default: unknown
+      return null
+    }
+
     for (const date of dates) {
       if (!inRange(date)) continue
 
@@ -161,7 +172,7 @@ export async function loadPoche() {
         source: SOURCE,
         source_url: url,
         date,
-        heure: null, // no per-date time on site listing
+        heure: guessHeure(date),
         titre,
         theatre_nom,
         theatre_adresse,
