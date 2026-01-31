@@ -87,16 +87,31 @@ function parseMetaDescription(html) {
   return m ? stripTags(m[1]) : null
 }
 
-function parseTitle(html) {
-  const m = /<title>([\s\S]*?)<\/title>/i.exec(html)
-  if (!m) return null
-  // Title format: "Les Héroïdes | ..."
-  return stripTags(m[1]).split('|')[0].trim()
+function parseOgTitle(html) {
+  const m = /<meta property="og:title" content="([^"]+)"/i.exec(html)
+  return m ? stripTags(m[1]) : null
 }
 
-function parseDateRangeFromTitle(html) {
-  // Example in title: "Du 3 au 21 février 2026"
-  const m = /Du\s+(\d{1,2})\s+au\s+(\d{1,2})\s+([a-zéû]+)\s+(\d{4})/i.exec(stripTags(html))
+function parseH1(html) {
+  const m = /<h1[^>]*>([\s\S]*?)<\/h1>/i.exec(html)
+  return m ? stripTags(m[1]) : null
+}
+
+function parseTitle(html) {
+  // The <title> tag on poche.be show pages is generic ("Théâtre de Poche | Bruxelles").
+  // The actual show title is in <h1> and also in og:title.
+  const h1 = parseH1(html)
+  if (h1) return h1
+  const ogt = parseOgTitle(html)
+  if (ogt) return ogt.split('|')[0].trim()
+  return null
+}
+
+function parseDateRangeFromOgTitle(html) {
+  // Example in og:title: "Pigeons | ... | Du 12 au 30 mai 2026 | ..."
+  const ogt = parseOgTitle(html)
+  if (!ogt) return null
+  const m = /Du\s+(\d{1,2})\s+au\s+(\d{1,2})\s+([a-zéû]+)\s+(\d{4})/i.exec(ogt)
   if (!m) return null
   const d1 = String(m[1]).padStart(2, '0')
   const d2 = String(m[2]).padStart(2, '0')
@@ -135,7 +150,7 @@ export async function loadPoche() {
     const image_url = parseOgImage(html)
     const description = parseMetaDescription(html)
 
-    const range = parseDateRangeFromTitle(html)
+    const range = parseDateRangeFromOgTitle(html)
     if (!range) continue
 
     const dates = dateRangeToDates(range.start, range.end)
