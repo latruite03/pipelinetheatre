@@ -38,16 +38,32 @@ function toAbsUrl(u) {
 }
 
 function parseList(html) {
-  // Duda gallery: anchor to /fr/events/... then caption with <h3>title</h3> and <p class="rteBlock">category</p>
+  // Duda gallery item contains:
+  // <a ... href="/fr/events/..." data-image-url="https://irp.cdn-website.com/...">
+  // ... <h3>Title</h3> ... <p class="rteBlock">Category</p>
   const items = []
-  const re = /href="(\/fr\/events\/[^\"]+)"[\s\S]{0,1200}?<h3[^>]*>([\s\S]*?)<\/h3>[\s\S]{0,800}?<p class="rteBlock">([\s\S]*?)<\/p>/gi
+
+  const re = /<a[^>]+href="(\/fr\/events\/[^\"]+)"[^>]*data-image-url="([^"]+)"[\s\S]{0,1400}?<h3[^>]*>([\s\S]*?)<\/h3>[\s\S]{0,900}?<p class="rteBlock">([\s\S]*?)<\/p>/gi
   let m
   while ((m = re.exec(html))) {
     items.push({
       url: toAbsUrl(m[1]),
-      title: stripTags(m[2]),
-      category: stripTags(m[3]),
+      image_url: stripTags(m[2]),
+      title: stripTags(m[3]),
+      category: stripTags(m[4]),
     })
+  }
+
+  // fallback if data-image-url missing
+  if (items.length === 0) {
+    const re2 = /href="(\/fr\/events\/[^\"]+)"[\s\S]{0,1200}?<h3[^>]*>([\s\S]*?)<\/h3>[\s\S]{0,800}?<p class="rteBlock">([\s\S]*?)<\/p>/gi
+    while ((m = re2.exec(html))) {
+      items.push({
+        url: toAbsUrl(m[1]),
+        title: stripTags(m[2]),
+        category: stripTags(m[3]),
+      })
+    }
   }
 
   // uniq by url
@@ -64,6 +80,29 @@ function parseList(html) {
 function isTheatreCategory(category) {
   const c = stripDiacritics((category || '').toLowerCase())
   return c.includes('theatre')
+}
+
+function parseDescription(html) {
+  // Grab first two paragraphs from the "Information" block (French).
+  // The HTML includes an inline binding: data-inline-binding="dynamic_page_collection.FRENCH DESCRIPTION"
+  const idx = html.indexOf('dynamic_page_collection.FRENCH DESCRIPTION')
+  if (idx === -1) return null
+  const slice = html.slice(idx, idx + 8000)
+
+  const ps = []
+  const re = /<p class="rteBlock">([\s\S]*?)<\/p>/gi
+  let m
+  while ((m = re.exec(slice))) {
+    const t = stripTags(m[1])
+    if (!t) continue
+    // skip credits lines
+    if (t.toLowerCase().startsWith('crédits')) break
+    ps.push(t)
+    if (ps.length >= 2) break
+  }
+
+  if (ps.length === 0) return null
+  return ps.join(' ')
 }
 
 function parseDates(html) {
@@ -108,6 +147,7 @@ export async function loadZinnema() {
     if (!isTheatreCategory(it.category)) continue
 
     const pageHtml = await (await fetch(it.url, FETCH_OPTS)).text()
+    const description = parseDescription(pageHtml)
     const dates = parseDates(pageHtml)
     for (const d of dates) {
       if (!inRange(d.date)) continue
@@ -122,6 +162,8 @@ export async function loadZinnema() {
         url: it.url,
         genre: null,
         style: null,
+        ...(it.image_url ? { image_url: it.image_url } : {}),
+        ...(description ? { description } : {}),
       }
       rep.fingerprint = computeFingerprint(rep)
       reps.push(rep)
