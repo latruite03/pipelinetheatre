@@ -66,9 +66,20 @@ function parseShowUrlsFromHome(html) {
   return Array.from(new Set(urls))
 }
 
-function parseOgImage(html) {
-  const m = /<meta property="og:image" content="([^"]+)"/i.exec(html)
-  return m ? toAbsUrl(m[1]) : null
+function parseBestImage(html) {
+  // Prefer a non-animated poster (webp/jpg/png) when available.
+  // TRG pages often have og:image as a GIF banner; we prefer fixed banner/poster images.
+  const imgRe = /\/web\/image\/[^\s"']+\.(webp|png|jpe?g)/gi
+  const matches = []
+  let m
+  while ((m = imgRe.exec(html))) {
+    matches.push(`${BASE}${m[0]}`)
+  }
+  if (matches.length > 0) return matches[0]
+
+  // fallback to og:image (may be gif)
+  const og = /<meta property="og:image" content="([^"]+)"/i.exec(html)
+  return og ? toAbsUrl(og[1]) : null
 }
 
 function parseTitle(html) {
@@ -188,7 +199,7 @@ export async function loadTRG() {
     const html = await (await fetch(showUrl, FETCH_OPTS)).text()
 
     const titre = parseTitle(html) || 'Spectacle'
-    const image_url = parseOgImage(html)
+    const image_url = parseBestImage(html)
     const description = parseDescription(html)
     const dts = parseCalendar(html)
 
