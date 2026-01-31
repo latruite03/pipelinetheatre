@@ -20,6 +20,7 @@ import { loadTRG } from './connectors/trg.mjs'
 import { loadMartyrs } from './connectors/martyrs.mjs'
 import { loadToone } from './connectors/toone.mjs'
 import { loadPoche } from './connectors/poche.mjs'
+import { loadTanneurs } from './connectors/tanneurs.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
 
@@ -47,6 +48,7 @@ Usage:
   node src/run.mjs martyrs
   node src/run.mjs toone
   node src/run.mjs poche
+  node src/run.mjs tanneurs
   node src/run.mjs enrich theatreduparc
 
 Env:
@@ -211,6 +213,15 @@ async function main() {
   if (mode === 'poche') {
     const reps = await loadPoche()
     console.log(`Loaded ${reps.length} rows from Théâtre de Poche Bruxelles`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'tanneurs') {
+    const reps = await loadTanneurs()
+    console.log(`Loaded ${reps.length} rows from Théâtre Les Tanneurs`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
