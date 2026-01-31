@@ -87,7 +87,24 @@ function parseOgImage(html) {
 
 function parseDescription(html) {
   const m = /<meta name="description" content="([^"]+)"/i.exec(html)
-  return m ? stripTags(m[1]) : null
+  if (m) return stripTags(m[1])
+
+  // Fallback: extract first meaningful paragraph in the "presentation" section.
+  // Pages are Elementor-based and sometimes don't include meta description.
+  const pres = /id="presentation"[\s\S]{0,20000}?<p[^>]*>([\s\S]*?)<\/p>/i.exec(html)
+  if (pres) {
+    const txt = stripTags(pres[1])
+    if (txt && txt.length > 20) return txt
+  }
+
+  // Last resort: first <p> in main content, skipping placeholder.
+  const p = /<main[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/i.exec(html)
+  if (p) {
+    const txt = stripTags(p[1])
+    if (txt && txt.length > 20 && txt.toLowerCase() !== 'pas de spectacle') return txt
+  }
+
+  return null
 }
 
 function parseDates(html) {
