@@ -11,6 +11,7 @@ import { loadRichesClaires } from './connectors/richesclaires.mjs'
 import { loadMercelisIxelles } from './connectors/mercelis_ixelles.mjs'
 import { loadCreaNova } from './connectors/creanova.mjs'
 import { loadAuditoriumJacquesBrel } from './connectors/auditoriumjbrel.mjs'
+import { loadZinnema } from './connectors/zinnema.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
 
@@ -29,6 +30,7 @@ Usage:
   node src/run.mjs mercelis
   node src/run.mjs creanova
   node src/run.mjs auditoriumjbrel
+  node src/run.mjs zinnema
   node src/run.mjs enrich theatreduparc
 
 Env:
@@ -112,6 +114,15 @@ async function main() {
   if (mode === 'auditoriumjbrel') {
     const reps = await loadAuditoriumJacquesBrel()
     console.log(`Loaded ${reps.length} rows from Auditorium Jacques Brel (theatre only)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'zinnema') {
+    const reps = await loadZinnema()
+    console.log(`Loaded ${reps.length} rows from Zinnema (theatre only)`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
