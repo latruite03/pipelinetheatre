@@ -28,6 +28,8 @@ import { loadAtelier210 } from './connectors/atelier210.mjs'
 import { loadBRONKS } from './connectors/bronks.mjs'
 import { loadLeRideau } from './connectors/lerideau.mjs'
 import { loadVaria } from './connectors/varia.mjs'
+import { loadOceanNord } from './connectors/oceannord.mjs'
+import { loadToisonDor } from './connectors/toisondor.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { enrichGenreStyle } from './enrich/genreStyle.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
@@ -64,6 +66,7 @@ Usage:
   node src/run.mjs bronks
   node src/run.mjs lerideau
   node src/run.mjs varia
+  node src/run.mjs toisondor
   node src/run.mjs enrich theatreduparc
   node src/run.mjs enrich genrestyle
 
@@ -301,6 +304,15 @@ async function main() {
   if (mode === 'varia') {
     const reps = await loadVaria()
     console.log(`Loaded ${reps.length} rows from Théâtre Varia`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'toisondor') {
+    const reps = await loadToisonDor()
+    console.log(`Loaded ${reps.length} rows from Théâtre de la Toison d'Or`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
