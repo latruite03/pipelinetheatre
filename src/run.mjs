@@ -26,6 +26,8 @@ import { loadMontagneMagique } from './connectors/montagnemagique.mjs'
 import { loadMarni } from './connectors/marni.mjs'
 import { loadAtelier210 } from './connectors/atelier210.mjs'
 import { loadBRONKS } from './connectors/bronks.mjs'
+import { loadLeRideau } from './connectors/lerideau.mjs'
+import { loadVaria } from './connectors/varia.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { enrichGenreStyle } from './enrich/genreStyle.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
@@ -60,6 +62,8 @@ Usage:
   node src/run.mjs marni
   node src/run.mjs atelier210
   node src/run.mjs bronks
+  node src/run.mjs lerideau
+  node src/run.mjs varia
   node src/run.mjs enrich theatreduparc
   node src/run.mjs enrich genrestyle
 
@@ -279,6 +283,24 @@ async function main() {
   if (mode === 'bronks') {
     const reps = await loadBRONKS()
     console.log(`Loaded ${reps.length} rows from BRONKS`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'lerideau') {
+    const reps = await loadLeRideau()
+    console.log(`Loaded ${reps.length} rows from Le Rideau`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'varia') {
+    const reps = await loadVaria()
+    console.log(`Loaded ${reps.length} rows from Théâtre Varia`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
