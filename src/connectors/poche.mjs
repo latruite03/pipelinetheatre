@@ -58,6 +58,20 @@ function stripTags(s) {
     .trim()
 }
 
+function htmlToTextWithBreaks(html) {
+  return decodeHtmlEntities(html || '')
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\s*\/p\s*>/gi, '\n\n')
+    .replace(/<\s*p\b[^>]*>/gi, '')
+    .replace(/<\s*\/li\s*>/gi, '\n')
+    .replace(/<\s*li\b[^>]*>/gi, '• ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/[ \t\r\f\v]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 function toAbsUrl(u) {
   if (!u) return null
   if (u.startsWith('http://') || u.startsWith('https://')) return u
@@ -85,6 +99,23 @@ function parseOgImage(html) {
 function parseMetaDescription(html) {
   const m = /<meta name="description" content="([^"]+)"/i.exec(html)
   return m ? stripTags(m[1]) : null
+}
+
+function parseResumeSection(html) {
+  // Show pages typically contain a dedicated section:
+  // <section id="sect-resume"> ... <div class="fromWYSIWYG"> ... </div> ... </section>
+  const sect = /<section[^>]+id="sect-resume"[^>]*>([\s\S]*?)<\/section>/i.exec(html)
+  if (!sect) return null
+  const block = sect[1]
+
+  const wys = /<div[^>]+class="fromWYSIWYG"[^>]*>([\s\S]*?)<\/div>/i.exec(block)
+  const contentHtml = wys ? wys[1] : block
+
+  const text = htmlToTextWithBreaks(contentHtml)
+
+  // Guard against empty / placeholder content.
+  if (!text || text.length < 40) return null
+  return text
 }
 
 function parseOgTitle(html) {
@@ -190,7 +221,7 @@ export async function loadPoche() {
 
     const titre = parseTitle(html) || 'Spectacle'
     const image_url = parseOgImage(html)
-    const description = parseMetaDescription(html)
+    const description = parseResumeSection(html) || parseMetaDescription(html)
 
     const utickUrl = parseUtickSeriesUrl(html)
 
