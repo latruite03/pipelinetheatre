@@ -1,0 +1,25 @@
+{
+  "lastUpdated": "2026-02-01T10:50:00Z",
+  "connectors": {
+    "improviste": {
+      "status": "active",
+      "source": "https://www.improviste.be/-Spectacles-.html",
+      "representations": 4,
+      "dateRange": "2026-01-01 to 2026-06-30",
+      "events": [
+        {
+          "title": "IA, vous et nous",
+          "date": "2026-01-31",
+          "time": "20:00",
+          "url": "https://www.improviste.be/IA-vous-et-nous.html"
+        },
+        {
+          "title": "Retrouvailles",
+          "dates": ["2026-04-09", "2026-04-10", "2026-04-11"],
+          "time": "20:00",
+          "url": "https://www.improviste.be/Retrouvailles.html"
+        }
+      ]
+    }
+  }
+}
