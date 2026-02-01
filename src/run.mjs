@@ -66,6 +66,7 @@ Usage:
   node src/run.mjs bronks
   node src/run.mjs lerideau
   node src/run.mjs varia
+  node src/run.mjs oceannord
   node src/run.mjs toisondor
   node src/run.mjs enrich theatreduparc
   node src/run.mjs enrich genrestyle
@@ -304,6 +305,15 @@ async function main() {
   if (mode === 'varia') {
     const reps = await loadVaria()
     console.log(`Loaded ${reps.length} rows from Théâtre Varia`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'oceannord') {
+    const reps = await loadOceanNord()
+    console.log(`Loaded ${reps.length} rows from Théâtre Océan Nord`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
