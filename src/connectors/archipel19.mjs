@@ -12,8 +12,40 @@ const FETCH_OPTS = {
   },
 }
 
+const FRENCH_MONTHS = [
+  'janvier',
+  'février',
+  'fevrier',
+  'mars',
+  'avril',
+  'mai',
+  'juin',
+  'juillet',
+  'août',
+  'aout',
+  'septembre',
+  'octobre',
+  'novembre',
+  'décembre',
+  'decembre',
+]
+
+function decodeHtmlEntities(s) {
+  return (s || '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&rsquo;/g, '’')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+}
+
 function stripTags(s) {
-  return (s || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  return decodeHtmlEntities(s || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 function toAbsUrl(u) {
@@ -27,10 +59,32 @@ function inRange(date) {
   return date >= '2026-01-01' && date <= '2026-06-30'
 }
 
+function sanitizeDescription(text) {
+  let t = (text || '').replace(/\s+/g, ' ').trim()
+  if (!t) return null
+
+  // Avoid re-embedding the date range(s) in the description
+  // Examples:
+  // - "dim 08.02.26 | 15h00"
+  // - "08.02.26"
+  t = t
+    .replace(/\b\d{2}\.\d{2}\.\d{2}\b(\s*\|\s*\d{1,2}h\d{2})?/gi, ' ')
+    .replace(/\b\d{1,2}\s*(?:h|:)\s*\d{2}\b/gi, ' ')
+
+  // Remove explicit French dates like "14 février 2026"
+  const monthAlt = FRENCH_MONTHS.map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
+  const reFr = new RegExp(`\\b\\d{1,2}\\s+(?:${monthAlt})\\s+\\d{4}\\b`, 'gi')
+  t = t.replace(reFr, ' ')
+
+  t = t.replace(/\s+/g, ' ').trim()
+  if (!t) return null
+  return t
+}
+
 function parseEventUrls(listHtml) {
   // Category archive uses <a href="https://archipel19.be/evenement/.../"> ...
   const urls = []
-  const re = /href="(https?:\/\/archipel19\.be\/evenement\/[^"]+)"/gi
+  const re = /href="(https?:\/\/archipel19\.be\/evenement\/[^\"]+)"/gi
   let m
   while ((m = re.exec(listHtml))) urls.push(toAbsUrl(m[1]))
 
@@ -84,6 +138,43 @@ function parseDateTimes(eventHtml) {
   return res
 }
 
+function parseDescription(eventHtml) {
+  // 1) meta description / OG description
+  const meta = /<meta\s+name="description"\s+content="([^"]+)"/i.exec(eventHtml)?.[1]
+  const og = /<meta\s+property="og:description"\s+content="([^"]+)"/i.exec(eventHtml)?.[1]
+
+  // 2) JSON-LD
+  let jsonLdDesc = null
+  for (const m of eventHtml.matchAll(/<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi)) {
+    try {
+      const raw = m[1].trim()
+      if (!raw) continue
+      const data = JSON.parse(raw)
+      const candidates = Array.isArray(data) ? data : [data]
+      for (const c of candidates) {
+        const d = c?.description
+        if (typeof d === 'string' && stripTags(d).length > 40) {
+          jsonLdDesc = stripTags(d)
+          break
+        }
+      }
+      if (jsonLdDesc) break
+    } catch {}
+  }
+
+  // 3) On-page content (The Events Calendar)
+  const body =
+    /<div[^>]+class="tribe-events-single-event-description"[^>]*>([\s\S]*?)<\/div>/i.exec(eventHtml)?.[1] ||
+    /<div[^>]+class="tribe-events-content"[^>]*>([\s\S]*?)<\/div>/i.exec(eventHtml)?.[1]
+
+  const picked = stripTags(meta || og || jsonLdDesc || body || '')
+  const cleaned = sanitizeDescription(picked)
+  if (!cleaned) return null
+
+  // Keep it reasonably short for UI cards
+  return cleaned.slice(0, 600)
+}
+
 export async function loadArchipel19() {
   const listHtml = await (await fetch(LIST_URL, FETCH_OPTS)).text()
   const eventUrls = parseEventUrls(listHtml)
@@ -96,6 +187,7 @@ export async function loadArchipel19() {
   for (const url of eventUrls) {
     const eventHtml = await (await fetch(url, FETCH_OPTS)).text()
     const titre = parseTitle(eventHtml) || 'Spectacle'
+    const description = parseDescription(eventHtml)
     const dts = parseDateTimes(eventHtml)
 
     for (const dt of dts) {
@@ -112,13 +204,13 @@ export async function loadArchipel19() {
         url,
         genre: null,
         style: null,
+        ...(description ? { description } : {}),
       }
       rep.fingerprint = computeFingerprint(rep)
       reps.push(rep)
     }
   }
 
-  // filter out null times if your pipeline expects heure always (keep for now; upstream should handle)
   const out = []
   const seen = new Set()
   for (const r of reps) {
