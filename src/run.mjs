@@ -22,6 +22,7 @@ import { loadToone } from './connectors/toone.mjs'
 import { loadPoche } from './connectors/poche.mjs'
 import { loadTanneurs } from './connectors/tanneurs.mjs'
 import { loadCirqueRoyal } from './connectors/cirqueroyal.mjs'
+import { loadMontagneMagique } from './connectors/montagnemagique.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { enrichGenreStyle } from './enrich/genreStyle.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
@@ -52,6 +53,7 @@ Usage:
   node src/run.mjs poche
   node src/run.mjs tanneurs
   node src/run.mjs cirqueroyal
+  node src/run.mjs montagnemagique
   node src/run.mjs enrich theatreduparc
   node src/run.mjs enrich genrestyle
 
@@ -235,6 +237,15 @@ async function main() {
   if (mode === 'cirqueroyal') {
     const reps = await loadCirqueRoyal()
     console.log(`Loaded ${reps.length} rows from Cirque Royal (theatre only, <=${'2026-06-30'})`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'montagnemagique') {
+    const reps = await loadMontagneMagique()
+    console.log(`Loaded ${reps.length} rows from Théâtre La montagne magique (OUT.be venue agenda)`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
