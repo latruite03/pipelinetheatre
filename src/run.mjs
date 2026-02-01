@@ -28,8 +28,14 @@ import { loadAtelier210 } from './connectors/atelier210.mjs'
 import { loadBRONKS } from './connectors/bronks.mjs'
 import { loadLeRideau } from './connectors/lerideau.mjs'
 import { loadVaria } from './connectors/varia.mjs'
+import { loadBRASS } from './connectors/brass.mjs'
 import { loadOceanNord } from './connectors/oceannord.mjs'
 import { loadToisonDor } from './connectors/toisondor.mjs'
+import { loadKaaitheater } from './connectors/kaaitheater.mjs'
+import { loadNovum } from './connectors/novum.mjs'
+import { loadLePublic } from './connectors/lepublic.mjs'
+import { loadLe140 } from './connectors/le140.mjs'
+import { loadImproviste } from './connectors/improviste.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { enrichGenreStyle } from './enrich/genreStyle.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
@@ -68,6 +74,12 @@ Usage:
   node src/run.mjs varia
   node src/run.mjs oceannord
   node src/run.mjs toisondor
+  node src/run.mjs brass
+  node src/run.mjs kaaitheater
+  node src/run.mjs novum
+  node src/run.mjs lepublic
+  node src/run.mjs le140
+  node src/run.mjs improviste
   node src/run.mjs enrich theatreduparc
   node src/run.mjs enrich genrestyle
 
@@ -323,6 +335,60 @@ async function main() {
   if (mode === 'toisondor') {
     const reps = await loadToisonDor()
     console.log(`Loaded ${reps.length} rows from Théâtre de la Toison d'Or`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'brass') {
+    const reps = await loadBRASS()
+    console.log(`Loaded ${reps.length} rows from BRASS (theatre only, <=2026-06-30)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'kaaitheater') {
+    const reps = await loadKaaitheater()
+    console.log(`Loaded ${reps.length} rows from Kaaitheater (Kaaitheater venues only, 2026-01-01 to 2026-06-30)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'novum') {
+    const reps = await loadNovum()
+    console.log(`Loaded ${reps.length} rows from Théâtre Saint-Michel (NOVUM)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'lepublic') {
+    const reps = await loadLePublic()
+    console.log(`Loaded ${reps.length} rows from Théâtre Le Public (2026-01-01 to 2026-06-30)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'le140') {
+    const reps = await loadLe140({ limitShows: 30 })
+    console.log(`Loaded ${reps.length} rows from Théâtre 140 (2026-01-01 to 2026-06-30)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'improviste') {
+    const reps = await loadImproviste()
+    console.log(`Loaded ${reps.length} rows from Théâtre l'Improviste (2026-01-01 to 2026-06-30)`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
