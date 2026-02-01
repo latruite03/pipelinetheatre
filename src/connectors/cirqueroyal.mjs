@@ -17,12 +17,20 @@ function decodeHtmlEntities(s) {
     .replace(/&eacute;/g, 'é')
     .replace(/&egrave;/g, 'è')
     .replace(/&ecirc;/g, 'ê')
+    .replace(/&Eacute;/g, 'É')
     .replace(/&agrave;/g, 'à')
     .replace(/&acirc;/g, 'â')
     .replace(/&icirc;/g, 'î')
     .replace(/&ocirc;/g, 'ô')
     .replace(/&ucirc;/g, 'û')
     .replace(/&ccedil;/g, 'ç')
+    .replace(/&oelig;/g, 'œ')
+    .replace(/&OElig;/g, 'Œ')
+    .replace(/&hellip;/g, '…')
+    .replace(/&ndash;/g, '–')
+    .replace(/&mdash;/g, '—')
+    .replace(/&laquo;/g, '«')
+    .replace(/&raquo;/g, '»')
 }
 
 function stripTags(s) {
