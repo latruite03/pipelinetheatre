@@ -23,6 +23,9 @@ import { loadPoche } from './connectors/poche.mjs'
 import { loadTanneurs } from './connectors/tanneurs.mjs'
 import { loadCirqueRoyal } from './connectors/cirqueroyal.mjs'
 import { loadMontagneMagique } from './connectors/montagnemagique.mjs'
+import { loadMarni } from './connectors/marni.mjs'
+import { loadAtelier210 } from './connectors/atelier210.mjs'
+import { loadBRONKS } from './connectors/bronks.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { enrichGenreStyle } from './enrich/genreStyle.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
@@ -54,6 +57,9 @@ Usage:
   node src/run.mjs tanneurs
   node src/run.mjs cirqueroyal
   node src/run.mjs montagnemagique
+  node src/run.mjs marni
+  node src/run.mjs atelier210
+  node src/run.mjs bronks
   node src/run.mjs enrich theatreduparc
   node src/run.mjs enrich genrestyle
 
@@ -246,6 +252,33 @@ async function main() {
   if (mode === 'montagnemagique') {
     const reps = await loadMontagneMagique()
     console.log(`Loaded ${reps.length} rows from Théâtre La montagne magique (OUT.be venue agenda)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'marni') {
+    const reps = await loadMarni()
+    console.log(`Loaded ${reps.length} rows from Théâtre Marni (OUT.be venue agenda, theatre-only)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'atelier210') {
+    const reps = await loadAtelier210()
+    console.log(`Loaded ${reps.length} rows from Atelier 210`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'bronks') {
+    const reps = await loadBRONKS()
+    console.log(`Loaded ${reps.length} rows from BRONKS`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
