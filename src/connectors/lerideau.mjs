@@ -14,6 +14,22 @@ const FETCH_OPTS = {
 
 function decodeHtmlEntities(s) {
   return (s || '')
+    // numeric entities
+    .replace(/&#(\d+);/g, (_, n) => {
+      try {
+        return String.fromCodePoint(Number(n))
+      } catch {
+        return _
+      }
+    })
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => {
+      try {
+        return String.fromCodePoint(parseInt(hex, 16))
+      } catch {
+        return _
+      }
+    })
+    // common named entities we see in titles/meta
     .replace(/&quot;/g, '"')
     .replace(/&#039;/g, "'")
     .replace(/&amp;/g, '&')
@@ -22,11 +38,19 @@ function decodeHtmlEntities(s) {
     .replace(/&nbsp;/g, ' ')
     .replace(/&rsquo;|&lsquo;/g, "'")
     .replace(/&ldquo;|&rdquo;/g, '"')
-    .replace(/&eacute;/g, 'é')
-    .replace(/&egrave;/g, 'è')
-    .replace(/&ecirc;/g, 'ê')
-    .replace(/&agrave;/g, 'à')
-    .replace(/&ccedil;/g, 'ç')
+    .replace(/&eacute;/gi, 'é')
+    .replace(/&egrave;/gi, 'è')
+    .replace(/&ecirc;/gi, 'ê')
+    .replace(/&agrave;/gi, 'à')
+    .replace(/&ccedil;/gi, 'ç')
+    .replace(/&ouml;/gi, 'ö')
+    .replace(/&auml;/gi, 'ä')
+    .replace(/&uuml;/gi, 'ü')
+    .replace(/&iuml;/gi, 'ï')
+    .replace(/&([a-zA-Z])uml;/g, (_, ch) => {
+      const map = { a: 'ä', A: 'Ä', e: 'ë', E: 'Ë', i: 'ï', I: 'Ï', o: 'ö', O: 'Ö', u: 'ü', U: 'Ü', y: 'ÿ', Y: 'Ÿ' }
+      return map[ch] || _
+    })
 }
 
 function stripTags(s) {
@@ -92,8 +116,12 @@ function parseTime(s) {
   if (!s) return null
   const m = /\b(\d{1,2})h(\d{2})\b/i.exec(s)
   if (!m) return null
-  const hh = String(Number(m[1])).padStart(2, '0')
-  const min = String(Number(m[2])).padStart(2, '0')
+  const hhN = Number(m[1])
+  const minN = Number(m[2])
+  // Some pages use a placeholder like "0h00" when time is not specified.
+  if (hhN === 0 && minN === 0) return null
+  const hh = String(hhN).padStart(2, '0')
+  const min = String(minN).padStart(2, '0')
   return `${hh}:${min}`
 }
 
@@ -109,15 +137,56 @@ function parseSpectacleLinksFromSeason(html) {
   return [...set].map((p) => (p.startsWith('http') ? p : `${BASE_URL}${p}`))
 }
 
+function toAbsUrl(u) {
+  if (!u) return null
+  const s = stripTags(decodeHtmlEntities(u))
+  if (!s) return null
+  if (s.startsWith('http://') || s.startsWith('https://')) return s
+  if (s.startsWith('//')) return `https:${s}`
+  if (s.startsWith('/')) return `${BASE_URL}${s}`
+  return s
+}
+
 function parseMeta(html) {
   const title = /<meta\s+property="og:title"\s+content="([^"]+)"/i.exec(html)?.[1]
+
   const ogImage = /<meta\s+property="og:image"\s+content="([^"]+)"/i.exec(html)?.[1]
+  const twImage = /<meta\s+name="twitter:image"\s+content="([^"]+)"/i.exec(html)?.[1]
+
   const desc = /<meta\s+name="description"\s+content="([^"]+)"/i.exec(html)?.[1]
+  const ogDesc = /<meta\s+property="og:description"\s+content="([^"]+)"/i.exec(html)?.[1]
+
+  const cleanTitle = title
+    ? stripTags(decodeHtmlEntities(title))
+        // handles both "| Le Rideau" and "│ Le Rideau" (and variants)
+        .replace(/\s*[|│]\s*Le Rideau\s*$/i, '')
+        .replace(/\s*[|│]\s*le Rideau\s*$/i, '')
+        .trim()
+    : null
+
+  const metaDesc = desc ? stripTags(decodeHtmlEntities(desc)) : ogDesc ? stripTags(decodeHtmlEntities(ogDesc)) : null
+  const description = metaDesc && metaDesc.trim() ? metaDesc.trim() : null
+
+  let image_url = toAbsUrl(ogImage || twImage)
+  if (!image_url) {
+    // Some pages have empty og:image. Try the first "img/asset" image.
+    const m = /<img[^>]+src="([^"]+img\/asset[^"]+)"/i.exec(html)
+    image_url = m ? toAbsUrl(m[1].replace(/&amp;/g, '&')) : null
+  }
+
+  let descFallback = null
+  if (!description) {
+    // Take the first <p> after the <h1> as a reasonable summary.
+    const idx = html.toLowerCase().indexOf('<h1')
+    const slice = idx >= 0 ? html.slice(idx, idx + 20000) : html.slice(0, 20000)
+    const p = /<p[^>]*>([\s\S]*?)<\/p>/i.exec(slice)?.[1]
+    descFallback = p ? stripTags(decodeHtmlEntities(p)) : null
+  }
 
   return {
-    titre: title ? stripTags(decodeHtmlEntities(title)).replace(/\s*\|\s*Le Rideau\s*$/i, '') : null,
-    image_url: ogImage ? stripTags(decodeHtmlEntities(ogImage)) : null,
-    description: desc ? stripTags(decodeHtmlEntities(desc)) : null,
+    titre: cleanTitle || null,
+    image_url: image_url || null,
+    description: description || descFallback || null,
   }
 }
 
