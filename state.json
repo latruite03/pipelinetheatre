@@ -2,7 +2,7 @@
   "lastUpdated": "2026-02-01T10:50:00Z",
   "connectors": {
     "improviste": {
-      "status": "active",
+      "status": "done",
       "source": "https://www.improviste.be/-Spectacles-.html",
       "representations": 4,
       "dateRange": "2026-01-01 to 2026-06-30",
@@ -15,27 +15,53 @@
         },
         {
           "title": "Retrouvailles",
-          "dates": ["2026-04-09", "2026-04-10", "2026-04-11"],
+          "dates": [
+            "2026-04-09",
+            "2026-04-10",
+            "2026-04-11"
+          ],
           "time": "20:00",
           "url": "https://www.improviste.be/Retrouvailles.html"
         }
       ]
     },
     "lepublic": {
-      "status": "active",
+      "status": "done",
       "source": "https://www.theatrelepublic.be/saison-2025-2026",
       "representations": 120,
       "dateRange": "2026-01-01 to 2026-06-30",
       "events": [
         {
           "title": "L'HABILLEUR",
-          "dates": ["2026-02-03", "2026-02-04", "2026-02-05", "2026-02-06", "2026-02-07", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-14"],
+          "dates": [
+            "2026-02-03",
+            "2026-02-04",
+            "2026-02-05",
+            "2026-02-06",
+            "2026-02-07",
+            "2026-02-10",
+            "2026-02-11",
+            "2026-02-12",
+            "2026-02-13",
+            "2026-02-14"
+          ],
           "time": "20:30",
           "url": "https://www.theatrelepublic.be/l-habilleur"
         },
         {
           "title": "L'EFFET MIROIR",
-          "dates": ["2026-01-13", "2026-01-14", "2026-01-15", "2026-01-16", "2026-01-17", "2026-01-20", "2026-01-21", "2026-01-22", "2026-01-23", "2026-01-24"],
+          "dates": [
+            "2026-01-13",
+            "2026-01-14",
+            "2026-01-15",
+            "2026-01-16",
+            "2026-01-17",
+            "2026-01-20",
+            "2026-01-21",
+            "2026-01-22",
+            "2026-01-23",
+            "2026-01-24"
+          ],
           "time": "20:30",
           "url": "https://www.theatrelepublic.be/l-effet-miroir"
         }

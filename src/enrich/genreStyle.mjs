@@ -142,11 +142,18 @@ export async function enrichGenreStyle({ dryRun = true, limit = null } = {}) {
 
   for (const s of shows) {
     const genre = s.hasGenre ? null : guessGenre(s.titre, s.description)
-    const style = s.hasStyle ? null : guessStyle(s.titre, s.description)
+    const inferredStyle = guessStyle(s.titre, s.description)
+    const style = s.hasStyle ? null : inferredStyle
 
     const patch = {}
     if (!s.hasGenre && genre) patch.genre = genre
     if (!s.hasStyle && style) patch.style = style
+
+    // Sanity check: classics should not stay labeled as "contemporain"
+    const forceStyle = s.hasStyle && inferredStyle === 'classique'
+    if (forceStyle) {
+      patch.style = 'classique'
+    }
 
     if (Object.keys(patch).length === 0) continue
 
@@ -159,7 +166,7 @@ export async function enrichGenreStyle({ dryRun = true, limit = null } = {}) {
     const q = supabase.from('representations').update(patch).eq('source_url', s.source_url)
     // only fill missing fields (don’t overwrite manual edits)
     if (patch.genre) q.is('genre', null)
-    if (patch.style) q.is('style', null)
+    if (patch.style && !forceStyle) q.is('style', null)
 
     const { error: e2 } = await q
     if (e2) throw new Error(e2.message)
