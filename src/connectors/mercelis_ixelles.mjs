@@ -97,6 +97,24 @@ function parseTime(html) {
   return `${m[1].padStart(2, '0')}:${m[2]}:00`
 }
 
+const MONTHS = {
+  janvier: '01',
+  fevrier: '02',
+  février: '02',
+  mars: '03',
+  avril: '04',
+  mai: '05',
+  juin: '06',
+  juillet: '07',
+  aout: '08',
+  août: '08',
+  septembre: '09',
+  octobre: '10',
+  novembre: '11',
+  decembre: '12',
+  décembre: '12',
+}
+
 function parseWeeklySchedule(html) {
   // Extract start times per weekday from the practical info block.
   // Example:
@@ -132,6 +150,23 @@ function parseWeeklySchedule(html) {
   }
 
   return map
+}
+
+function parseSpecificDates(html) {
+  const block = /<td id="horaire"[\s\S]*?<span class="info-text"[^>]*>([\s\S]*?)<\/span>/i.exec(html)?.[1]
+  if (!block) return []
+  const text = stripTags(decodeHtmlEntities(block)).replace(/\s+/g, ' ').trim()
+  const out = []
+  const re = /(\d{1,2})\s+(janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre)\s+(\d{4}).*?\b(\d{1,2}:\d{2})/gi
+  let m
+  while ((m = re.exec(text))) {
+    const day = m[1].padStart(2, '0')
+    const month = MONTHS[m[2].toLowerCase()]
+    const year = m[3]
+    const time = m[4]
+    if (month) out.push({ date: `${year}-${month}-${day}`, heure: `${time}:00` })
+  }
+  return out
 }
 
 function toWeekdayFr(date) {
@@ -203,10 +238,15 @@ export async function loadMercelisIxelles() {
     let occ = []
     if (range) {
       occ = expandDateRange(range, schedule)
+      if (!occ.length) {
+        // fallback: explicit dates with times in horaire block
+        occ = parseSpecificDates(html)
+      }
     } else {
       const single = parseSingleDate(html)
       const time = parseTime(html)
       if (single && time) occ = [{ date: single, heure: time }]
+      if (!occ.length) occ = parseSpecificDates(html)
     }
 
     if (!occ.length) continue
