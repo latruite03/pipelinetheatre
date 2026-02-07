@@ -2,8 +2,8 @@ import fetch from 'node-fetch'
 import { computeFingerprint, stripDiacritics } from '../lib/normalize.mjs'
 
 const SOURCE = 'toisondor'
-const BASE = 'https://www.ttotheatre.com'
-const AGENDA_URL = `${BASE}/spectacles/`
+const BASES = ['https://www.toison-dor.com', 'https://www.ttotheatre.com']
+const AGENDA_PATH = '/spectacles/'
 
 const FETCH_OPTS = {
   headers: {
@@ -42,28 +42,41 @@ function stripTags(s) {
     .trim()
 }
 
-function toAbsUrl(u) {
+function toAbsUrl(u, base) {
   if (!u) return null
   if (u.startsWith('http://') || u.startsWith('https://')) return u
-  if (u.startsWith('/')) return `${BASE}${u}`
-  return `${BASE}/${u}`
+  if (u.startsWith('/')) return `${base}${u}`
+  return `${base}/${u}`
 }
 
 function inRange(date) {
   return date >= '2026-01-01' && date <= '2026-06-30'
 }
 
-function parseSpectacleUrls(html) {
+async function fetchHtmlWithFallback(url) {
+  const res = await fetch(url, FETCH_OPTS)
+  if (res.ok) return { html: await res.text(), url: res.url }
+
+  if (res.status === 403 && url.includes('toison-dor.com')) {
+    const altUrl = url.replace('https://www.toison-dor.com', 'https://www.ttotheatre.com')
+    const res2 = await fetch(altUrl, FETCH_OPTS)
+    if (res2.ok) return { html: await res2.text(), url: res2.url }
+  }
+
+  return null
+}
+
+function parseSpectacleUrls(html, base) {
   const urls = new Set()
 
   // The listing uses absolute URLs.
-  const reAbs = /href="(https?:\/\/(?:www\.)?ttotheatre\.com\/spectacle\/[^"]+?)"/gi
+  const reAbs = /href="(https?:\/\/(?:www\.)?(?:ttotheatre|toison-dor)\.com\/spectacle\/[^"]+?)"/gi
   let m
   while ((m = reAbs.exec(html))) urls.add(m[1])
 
   // Fallback for relative links.
   const reRel = /href="(\/spectacle\/[a-z0-9\-]+\/?)/gi
-  while ((m = reRel.exec(html))) urls.add(toAbsUrl(m[1]))
+  while ((m = reRel.exec(html))) urls.add(toAbsUrl(m[1], base))
 
   return Array.from(urls)
 }
@@ -90,6 +103,12 @@ function parseDescription(html) {
   return firstP ? stripTags(firstP[1]) : stripTags(m[1])
 }
 
+function parseTicketUrl(html) {
+  const m = /href="(https?:\/\/[^\"]*utick[^\"]+)"/i.exec(html)
+  if (m) return decodeHtmlEntities(m[1])
+  return null
+}
+
 function parseDateRange(html) {
   const block = html.match(/<div class="spectacle__dates[\s\S]*?<\/div>/i)
   if (!block) return null
@@ -102,8 +121,9 @@ function parseDateRange(html) {
 
   const p = block[0].match(/<p[^>]*>([\s\S]*?)<\/p>/i)
   const scheduleText = p ? stripTags(p[1]) : null
+  const is_complet = /\bcomplet\b|sold out|epuise|épuis/i.test(stripTags(block[0]))
 
-  return { start, end, scheduleText }
+  return { start, end, scheduleText, is_complet }
 }
 
 const WEEKDAYS = {
@@ -290,8 +310,19 @@ function isExternalVenue(scheduleText) {
 }
 
 export async function loadToisonDor() {
-  const agendaHtml = await (await fetch(AGENDA_URL, FETCH_OPTS)).text()
-  const showUrls = parseSpectacleUrls(agendaHtml)
+  let agendaHtml = null
+  let agendaBase = null
+  for (const base of BASES) {
+    const res = await fetchHtmlWithFallback(`${base}${AGENDA_PATH}`)
+    if (res?.html) {
+      agendaHtml = res.html
+      agendaBase = base
+      break
+    }
+  }
+  if (!agendaHtml) return []
+
+  const showUrls = parseSpectacleUrls(agendaHtml, agendaBase)
 
   const theatre_nom = "Théâtre de la Toison d'Or"
   const theatre_adresse = "Galeries de la Toison d'Or 396-398, 1050 Ixelles"
@@ -299,11 +330,11 @@ export async function loadToisonDor() {
   const reps = []
 
   for (const url of showUrls) {
-    const res = await fetch(url, FETCH_OPTS)
-    if (!res.ok) continue
-    const html = await res.text()
+    const res = await fetchHtmlWithFallback(url)
+    if (!res?.html) continue
+    const html = res.html
 
-    const { start, end, scheduleText } = parseDateRange(html) || {}
+    const { start, end, scheduleText, is_complet } = parseDateRange(html) || {}
     if (!start || !end) continue
 
     if (isExternalVenue(scheduleText)) continue
@@ -311,6 +342,7 @@ export async function loadToisonDor() {
     const titre = parseTitle(html) || 'Spectacle'
     const image_url = parseImage(html)
     const description = parseDescription(html)
+    const ticket_url = parseTicketUrl(html)
 
     const dts = expandDateTimes({ start, end, scheduleText })
 
@@ -328,6 +360,8 @@ export async function loadToisonDor() {
         url,
         genre: null,
         style: null,
+        ...(ticket_url ? { ticket_url } : {}),
+        ...(is_complet ? { is_complet: true } : {}),
         ...(image_url ? { image_url } : {}),
         ...(description ? { description } : {}),
       }

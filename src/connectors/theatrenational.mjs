@@ -112,24 +112,33 @@ function parseMetaDescription(activityHtml) {
 }
 
 function parseCalendarDateTimes(activityHtml) {
-  // Calendar block contains repeated:
-  // <time datetime="2026-02-03">...</time> - 20:00
   const out = []
-  const re = /<time datetime="(\d{4}-\d{2}-\d{2})"[\s\S]*?<\/time>[\s\S]*?-\s*(\d{1,2}:\d{2})/g
-  let m
-  while ((m = re.exec(activityHtml))) {
-    const date = m[1]
-    const hm = m[2]
-    const hh = hm.split(':')[0].padStart(2, '0')
-    const mm = hm.split(':')[1]
-    out.push({ date, heure: `${hh}:${mm}:00` })
+  const parts = activityHtml.split('<li class="calendar__item"').slice(1)
+
+  for (const part of parts) {
+    const block = '<li class="calendar__item"' + part
+    const date = /<time datetime="(\d{4}-\d{2}-\d{2})"/i.exec(block)?.[1]
+    const timeRaw = /-\s*(\d{1,2}:\d{2})/i.exec(block)?.[1]
+
+    if (!date || !timeRaw) continue
+
+    const hh = timeRaw.split(':')[0].padStart(2, '0')
+    const mm = timeRaw.split(':')[1]
+
+    const actionHtml = /<div class="calendar__action">([\s\S]*?)<\/div>/i.exec(block)?.[1] || ''
+    const ticketUrlRaw = /<a href="([^"]+)"[^>]*>/i.exec(actionHtml)?.[1]
+    const ticket_url = ticketUrlRaw ? decodeHtmlEntities(ticketUrlRaw) : null
+
+    const actionText = cleanText(actionHtml)
+    const is_complet = /\bcomplet\b|sold out|epuise|épuis/i.test(actionText)
+
+    out.push({ date, heure: `${hh}:${mm}:00`, ticket_url, is_complet })
   }
 
-  // uniq
   const seen = new Set()
   const res = []
   for (const dt of out) {
-    const k = `${dt.date}|${dt.heure}`
+    const k = `${dt.date}|${dt.heure}|${dt.ticket_url || ''}`
     if (seen.has(k)) continue
     seen.add(k)
     res.push(dt)
@@ -166,6 +175,8 @@ export async function loadTheatreNational() {
         url: it.url,
         genre: null,
         style: null,
+        ...(dt.ticket_url ? { ticket_url: dt.ticket_url } : {}),
+        ...(dt.is_complet ? { is_complet: true } : {}),
         ...(image_url ? { image_url } : {}),
         ...(description ? { description } : {}),
       }

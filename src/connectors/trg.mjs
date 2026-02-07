@@ -125,6 +125,16 @@ function parseDescription(html) {
   return joined.length > 320 ? joined.slice(0, 317) + '…' : joined
 }
 
+function parseTicketUrl(html) {
+  const byLabel = /href="([^"]+)"[^>]*>\s*R[eé]server[^<]*<\/a>/i.exec(html)
+  if (byLabel) return decodeHtmlEntities(byLabel[1])
+
+  const byUtick = /href="(https?:\/\/[^\"]*utick[^\"]+)"/i.exec(html)
+  if (byUtick) return decodeHtmlEntities(byUtick[1])
+
+  return null
+}
+
 function parseCalendar(html) {
   // Cards in sections data-name="Calendrier Dates":
   // <span style="font-size: 24px;">Mer 18.02.26</span>
@@ -169,7 +179,9 @@ function parseCalendar(html) {
         }
       }
 
-      out.push({ date, heure })
+      const is_complet = /\bcomplet\b|sold out|epuise|épuis/i.test(cardHtml)
+
+      out.push({ date, heure, is_complet })
     }
   }
 
@@ -177,7 +189,7 @@ function parseCalendar(html) {
   const seen = new Set()
   const res = []
   for (const dt of out) {
-    const k = `${dt.date}|${dt.heure || ''}`
+    const k = `${dt.date}|${dt.heure || ''}|${dt.is_complet ? '1' : '0'}`
     if (seen.has(k)) continue
     seen.add(k)
     res.push(dt)
@@ -201,6 +213,7 @@ export async function loadTRG() {
     const titre = parseTitle(html) || 'Spectacle'
     const image_url = parseBestImage(html)
     const description = parseDescription(html)
+    const ticket_url = parseTicketUrl(html)
     const dts = parseCalendar(html)
 
     for (const dt of dts) {
@@ -218,6 +231,8 @@ export async function loadTRG() {
         url: showUrl,
         genre: null,
         style: null,
+        ...(ticket_url ? { ticket_url } : {}),
+        ...(dt.is_complet ? { is_complet: true } : {}),
         ...(image_url ? { image_url } : {}),
         ...(description ? { description } : {}),
       }
