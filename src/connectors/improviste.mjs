@@ -43,7 +43,8 @@ function parseFrenchDate(dateStr) {
   const match = cleaned.match(/(\d{1,2})\.(\d{2})\.(\d{4}).*?(\d{2}):(\d{2})/)
   if (match) {
     const [, day, month, year, hour, minute] = match
-    return `${year}-${month}-${day}T${hour}:${minute}:00Z`
+    const dd = String(day).padStart(2, '0')
+    return `${year}-${month}-${dd}T${hour}:${minute}:00Z`
   }
   return null
 }
@@ -137,8 +138,8 @@ export async function loadImproviste() {
         theatre_nom,
         theatre_adresse,
         url: a.url,
-        genre: 'Théâtre improvisé',
-        style: 'Improvisation',
+        genre: null,
+        style: null,
         ...(a.imageUrl ? { image_url: a.imageUrl } : {}),
         description: `Spectacle d'improvisation au Théâtre l'Improviste.`,
       }
