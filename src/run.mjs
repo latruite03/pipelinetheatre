@@ -36,6 +36,8 @@ import { loadNovum } from './connectors/novum.mjs'
 import { loadLePublic } from './connectors/lepublic.mjs'
 import { loadLe140 } from './connectors/le140.mjs'
 import { loadImproviste } from './connectors/improviste.mjs'
+import { loadBeursschouwburg } from './connectors/beursschouwburg.mjs'
+import { loadHallesDeSchaerbeek } from './connectors/halles.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { enrichGenreStyle } from './enrich/genreStyle.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
@@ -80,6 +82,8 @@ Usage:
   node src/run.mjs lepublic
   node src/run.mjs le140
   node src/run.mjs improviste
+  node src/run.mjs beursschouwburg
+  node src/run.mjs halles
   node src/run.mjs enrich theatreduparc
   node src/run.mjs enrich genrestyle
 
@@ -389,6 +393,24 @@ async function main() {
   if (mode === 'improviste') {
     const reps = await loadImproviste()
     console.log(`Loaded ${reps.length} rows from Théâtre l'Improviste (2026-01-01 to 2026-06-30)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'beursschouwburg') {
+    const reps = await loadBeursschouwburg()
+    console.log(`Loaded ${reps.length} rows from Beursschouwburg (2026-01-01 to 2026-06-30)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'halles') {
+    const reps = await loadHallesDeSchaerbeek()
+    console.log(`Loaded ${reps.length} rows from Les Halles de Schaerbeek (2026-01-01 to 2026-06-30)`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
