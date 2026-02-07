@@ -155,7 +155,8 @@ function isTheatreCategory(cat) {
 }
 
 export async function loadMercelisIxelles() {
-  const venueUrl = `${BASE}/fr/mercelis/`
+  // Use the dedicated theatre category
+  const venueUrl = `${BASE}/fr/event/arts-de-la-scene/`
   const venueHtml = await (await fetch(venueUrl)).text()
 
   const eventUrls = parseRelatedEventUrlsFromVenuePage(venueHtml)
