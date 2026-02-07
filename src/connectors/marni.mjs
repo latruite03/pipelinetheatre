@@ -2,8 +2,8 @@ import fetch from 'node-fetch'
 import { computeFingerprint } from '../lib/normalize.mjs'
 
 const SOURCE = 'marni'
-// OUT.be venue page is reachable from this environment, while the official site (theatremarni.com) currently times out.
-const VENUE_URL = 'https://www.out.be/fr/lieux/10460_theatre-marni.html'
+const BASE = 'https://theatremarni.com'
+const SITEMAP = `${BASE}/sitemap.xml`
 
 const FETCH_OPTS = {
   headers: {
@@ -30,101 +30,121 @@ function stripTags(s) {
     .trim()
 }
 
+const MONTHS = {
+  janvier: '01',
+  fevrier: '02',
+  février: '02',
+  mars: '03',
+  avril: '04',
+  mai: '05',
+  juin: '06',
+  juillet: '07',
+  aout: '08',
+  août: '08',
+  septembre: '09',
+  octobre: '10',
+  novembre: '11',
+  decembre: '12',
+  décembre: '12',
+}
+
 function inRange(date) {
   return date >= '2026-01-01' && date <= '2026-06-30'
 }
 
-function addDays(date, n) {
-  const d = new Date(`${date}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + n)
-  return d.toISOString().slice(0, 10)
+function parseSitemapUrls(xml) {
+  const urls = []
+  const re = /<loc>([^<]+)<\/loc>/gi
+  let m
+  while ((m = re.exec(xml))) {
+    const u = m[1]
+    if (!u.startsWith(BASE)) continue
+    if (/spip\.php/i.test(u)) continue
+    // keep content pages that end with -digits (SPIP objects)
+    if (/\/[^/]+-\d+$/.test(u)) urls.push(u)
+  }
+  return Array.from(new Set(urls))
 }
 
-function expandDates(start, end) {
+function parseTitle(html) {
+  const m = /<h1[^>]*>([\s\S]*?)<\/h1>/i.exec(html)
+  if (m) return stripTags(decodeHtmlEntities(m[1]))
+  const og = /<meta property="og:title" content="([^"]+)"/i.exec(html)?.[1]
+  return og ? decodeHtmlEntities(og).trim() : null
+}
+
+function parseImage(html) {
+  return /<meta property="og:image" content="([^"]+)"/i.exec(html)?.[1] || null
+}
+
+function parseDescription(html) {
+  const og = /<meta property="og:description" content="([^"]+)"/i.exec(html)?.[1]
+  return og ? decodeHtmlEntities(og).trim() : null
+}
+
+function parseDatesWithTimes(html) {
+  const text = stripTags(decodeHtmlEntities(html))
   const out = []
-  for (let cur = start; cur <= end; cur = addDays(cur, 1)) out.push(cur)
+
+  // Look for patterns like "6 février 2026" and optional time nearby
+  const re = /(\d{1,2})\s+(janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre)\s+(\d{4})([^\n]{0,80})/gi
+  let m
+  while ((m = re.exec(text))) {
+    const day = m[1].padStart(2, '0')
+    const month = MONTHS[m[2].toLowerCase()]
+    const year = m[3]
+    const tail = m[4] || ''
+
+    if (!month) continue
+    const date = `${year}-${month}-${day}`
+    if (!inRange(date)) continue
+
+    let time = null
+    const tm = /(\d{1,2})\s*h\s*(\d{2})|(\d{1,2})\:(\d{2})/i.exec(tail)
+    if (tm) {
+      if (tm[1] && tm[2]) time = `${tm[1].padStart(2,'0')}:${tm[2]}:00`
+      else if (tm[3] && tm[4]) time = `${tm[3].padStart(2,'0')}:${tm[4]}:00`
+    }
+
+    out.push({ date, heure: time })
+  }
+
   return out
 }
 
-function parseArticlesFromVenue(html) {
-  const section = /<div id="id-calendar-swipe-list"[\s\S]*?<\/div>\s*(?:<script|<div class="form-newsletters"|<\/div>\s*<\/div>)/i.exec(html)
-  const chunk = section ? section[0] : html
-
-  const articles = []
-  const re = /<article\b[\s\S]*?<\/article>/gi
-  let m
-  while ((m = re.exec(chunk))) {
-    const block = m[0]
-
-    const start = /data-date-start="(\d{4}-\d{2}-\d{2})"/i.exec(block)?.[1] || null
-    const end = /data-date-end="(\d{4}-\d{2}-\d{2})"/i.exec(block)?.[1] || start
-
-    const href = /<a\s+href="([^"]+)"/i.exec(block)?.[1] || null
-    const url = href ? (href.startsWith('http') ? href : `https://www.out.be${href}`) : null
-
-    const titleRaw = /<h3 class="title">([\s\S]*?)<\/h3>/i.exec(block)?.[1] || null
-    const titre = titleRaw ? stripTags(decodeHtmlEntities(titleRaw)) : null
-
-    const catRaw = /<div class="category">([\s\S]*?)<\/div>/i.exec(block)?.[1] || null
-    const category = catRaw ? stripTags(decodeHtmlEntities(catRaw)) : null
-
-    const img = /background-image:url\((https?:\/\/[^)]+)\)/i.exec(block)?.[1] || null
-
-    let description = null
-    const ld = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/i.exec(block)?.[1]
-    if (ld) {
-      try {
-        const data = JSON.parse(ld)
-        const d = stripTags(decodeHtmlEntities(data?.description))
-        if (d) description = d
-      } catch {
-        // ignore
-      }
-    }
-
-    articles.push({ start, end, titre, url, category, image_url: img, description })
-  }
-
-  return articles
-}
-
-function isTheatreCategory(category) {
-  if (!category) return false
-  // OUT.be uses e.g. "Théatre / Spectacles" (note: missing accent in "Théatre")
-  return /\bTh[ée]a?tre\b/i.test(category)
-}
-
 export async function loadMarni() {
-  const html = await (await fetch(VENUE_URL, FETCH_OPTS)).text()
+  const sitemapXml = await (await fetch(SITEMAP, FETCH_OPTS)).text()
+  const urls = parseSitemapUrls(sitemapXml)
 
   const theatre_nom = 'Théâtre Marni'
   const theatre_adresse = 'Rue de Vergnies 25, 1050 Ixelles, Bruxelles'
 
   const reps = []
 
-  const articles = parseArticlesFromVenue(html)
+  for (const url of urls) {
+    const html = await (await fetch(url, FETCH_OPTS)).text()
 
-  for (const a of articles) {
-    if (!a.start) continue
-    if (!isTheatreCategory(a.category)) continue
+    const titre = parseTitle(html) || 'Spectacle'
+    const image_url = parseImage(html)
+    const description = parseDescription(html)
 
-    for (const date of expandDates(a.start, a.end || a.start)) {
-      if (!inRange(date)) continue
+    const dates = parseDatesWithTimes(html)
+    if (!dates.length) continue
 
-      // OUT.be event pages/LD+JSON usually do not carry a reliable start time.
+    for (const d of dates) {
       const rep = {
         source: SOURCE,
-        source_url: VENUE_URL,
-        date,
-        heure: null,
-        titre: a.titre || 'Spectacle',
+        source_url: url,
+        date: d.date,
+        heure: d.heure,
+        titre,
         theatre_nom,
         theatre_adresse,
-        url: a.url,
+        url,
         genre: null,
         style: null,
-        ...(a.image_url ? { image_url: a.image_url } : {}),
-        ...(a.description ? { description: a.description.slice(0, 500) } : {}),
+        ...(image_url ? { image_url } : {}),
+        ...(description ? { description: description.slice(0, 500) } : {}),
       }
 
       rep.fingerprint = computeFingerprint(rep)
