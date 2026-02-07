@@ -32,6 +32,7 @@ import { loadBRASS } from './connectors/brass.mjs'
 import { loadOceanNord } from './connectors/oceannord.mjs'
 import { loadToisonDor } from './connectors/toisondor.mjs'
 import { loadKaaitheater } from './connectors/kaaitheater.mjs'
+import { loadWHalll } from './connectors/whalll.mjs'
 import { loadNovum } from './connectors/novum.mjs'
 import { loadLePublic } from './connectors/lepublic.mjs'
 import { loadLe140 } from './connectors/le140.mjs'
@@ -78,6 +79,7 @@ Usage:
   node src/run.mjs toisondor
   node src/run.mjs brass
   node src/run.mjs kaaitheater
+  node src/run.mjs whalll
   node src/run.mjs novum
   node src/run.mjs lepublic
   node src/run.mjs le140
@@ -356,7 +358,16 @@ async function main() {
 
   if (mode === 'kaaitheater') {
     const reps = await loadKaaitheater()
-    console.log(`Loaded ${reps.length} rows from Kaaitheater (Kaaitheater venues only, 2026-01-01 to 2026-06-30)`)
+    console.log(`Loaded ${reps.length} rows from Kaaitheater (2026-02-01 to 2026-06-30)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'whalll') {
+    const reps = await loadWHalll()
+    console.log(`Loaded ${reps.length} rows from W:Halll (2026-02-01 to 2026-06-30)`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
