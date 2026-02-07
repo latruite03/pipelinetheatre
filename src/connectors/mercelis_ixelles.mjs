@@ -83,6 +83,20 @@ function parseDateRange(html) {
   return { start, end }
 }
 
+function parseSingleDate(html) {
+  // "27/01/2026"
+  const m = /(\d{2})\/(\d{2})\/(\d{4})/i.exec(html)
+  if (!m) return null
+  return `${m[3]}-${m[2]}-${m[1]}`
+}
+
+function parseTime(html) {
+  // First time like 20:00 or 20h00
+  const m = /(\d{1,2})[:h](\d{2})/i.exec(html)
+  if (!m) return null
+  return `${m[1].padStart(2, '0')}:${m[2]}:00`
+}
+
 function parseWeeklySchedule(html) {
   // Extract start times per weekday from the practical info block.
   // Example:
@@ -186,9 +200,16 @@ export async function loadMercelisIxelles() {
     const range = parseDateRange(html)
     const schedule = parseWeeklySchedule(html)
 
-    if (!range) continue
+    let occ = []
+    if (range) {
+      occ = expandDateRange(range, schedule)
+    } else {
+      const single = parseSingleDate(html)
+      const time = parseTime(html)
+      if (single && time) occ = [{ date: single, heure: time }]
+    }
 
-    const occ = expandDateRange(range, schedule)
+    if (!occ.length) continue
     for (const o of occ) {
       const rep = {
         source: SOURCE,
