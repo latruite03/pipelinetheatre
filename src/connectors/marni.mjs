@@ -115,13 +115,15 @@ function parseDatesWithTimes(html) {
 export async function loadMarni() {
   const sitemapXml = await (await fetch(SITEMAP, FETCH_OPTS)).text()
   const urls = parseSitemapUrls(sitemapXml)
+  const limit = process.env.MARNI_LIMIT ? Number(process.env.MARNI_LIMIT) : 300
+  const limitedUrls = urls.slice(0, limit)
 
   const theatre_nom = 'Théâtre Marni'
   const theatre_adresse = 'Rue de Vergnies 25, 1050 Ixelles, Bruxelles'
 
   const reps = []
 
-  for (const url of urls) {
+  for (const url of limitedUrls) {
     const html = await (await fetch(url, FETCH_OPTS)).text()
 
     const titre = parseTitle(html) || 'Spectacle'
