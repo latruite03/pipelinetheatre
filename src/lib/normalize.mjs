@@ -33,8 +33,17 @@ function canonicalTitle(titre, theatre_nom) {
   const venue = String(theatre_nom || '').trim()
 
   // Remove common suffixes like "— VENUE" or "| VENUE" (case-insensitive)
+  // Also handle venue variants without diacritics and casing (e.g., "— brass" while theatre_nom="BRASS").
+  const candidates = new Set()
   if (venue) {
-    const escaped = venue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    candidates.add(venue)
+    candidates.add(stripDiacritics(venue))
+    candidates.add(stripDiacritics(venue).toLowerCase())
+  }
+
+  for (const v of candidates) {
+    if (!v) continue
+    const escaped = String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     t = t.replace(new RegExp(`\s*(?:—|\-|\||:)?\s*${escaped}\s*$`, 'i'), '').trim()
   }
 

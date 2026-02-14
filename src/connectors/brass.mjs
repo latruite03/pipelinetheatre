@@ -92,6 +92,20 @@ function parseTicketUrl(html) {
   return anyTicket ? anyTicket[1] : null
 }
 
+function parseDescription(html) {
+  const og = /<meta property="og:description" content="([^"]+)"/i.exec(html)
+  if (og) return stripTags(og[1])
+
+  const meta = /<meta name="description" content="([^"]+)"/i.exec(html)
+  if (meta) return stripTags(meta[1])
+
+  // Fallback: first paragraph in content area
+  const p = /<div class="content"[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/i.exec(html)
+  if (p) return stripTags(p[1])
+
+  return null
+}
+
 export async function loadBRASS() {
   const theatre_nom = 'BRASS'
   const theatre_adresse = 'Avenue Van Volxem 364, 1190 Forest / Bruxelles'
@@ -109,6 +123,7 @@ export async function loadBRASS() {
     const titre = parseTitle(html) || 'Event'
     const heure = parseTime(html)
     const ticketUrl = parseTicketUrl(html) || url
+    const description = parseDescription(html)
 
     const is_complet = /complet|sold out|uitverkocht/i.test(`${titre} ${url} ${html}`)
 
@@ -125,6 +140,7 @@ export async function loadBRASS() {
       style: null,
       is_complet: !!is_complet,
       is_theatre: true,
+      ...(description ? { description: description.slice(0, 500) } : {}),
     }
 
     // Filter out obvious non-theatre content (BRASS hosts a lot of non-theatre events)
