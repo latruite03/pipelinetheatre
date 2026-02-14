@@ -1,5 +1,6 @@
 import fetch from 'node-fetch'
 import { computeFingerprint } from '../lib/normalize.mjs'
+import { shouldEmitTheatre } from '../lib/classify.mjs'
 
 const SOURCE = 'montagnemagique'
 const VENUE_URL = 'https://www.out.be/fr/lieux/11159_theatre-la-montagne-magique.html'
@@ -111,9 +112,15 @@ export async function loadMontagneMagique() {
         url: a.url,
         genre: null,
         style: null,
+        is_theatre: true,
         ...(a.image_url ? { image_url: a.image_url } : {}),
         ...(a.description ? { description: a.description.slice(0, 500) } : {}),
       }
+
+      // OUT.be venue pages can include non-theatre items; filter here.
+      const strict = process.env.THEATRE_FILTER_STRICT !== '0'
+      const gate = shouldEmitTheatre(rep, { strict })
+      if (!gate.ok) continue
 
       rep.fingerprint = computeFingerprint(rep)
       reps.push(rep)

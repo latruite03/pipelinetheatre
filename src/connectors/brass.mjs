@@ -1,5 +1,6 @@
 import fetch from 'node-fetch'
 import { computeFingerprint } from '../lib/normalize.mjs'
+import { shouldEmitTheatre } from '../lib/classify.mjs'
 
 const SOURCE = 'brass'
 const BASE = 'https://www.lebrass.be'
@@ -123,6 +124,14 @@ export async function loadBRASS() {
       genre: null,
       style: null,
       is_complet: !!is_complet,
+      is_theatre: true,
+    }
+
+    // Filter out obvious non-theatre content (BRASS hosts a lot of non-theatre events)
+    const strict = process.env.THEATRE_FILTER_STRICT !== '0'
+    const gate = shouldEmitTheatre(rep, { strict })
+    if (!gate.ok) {
+      continue
     }
 
     rep.fingerprint = computeFingerprint(rep)

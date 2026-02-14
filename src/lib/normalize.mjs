@@ -13,21 +13,55 @@ export function normKey(s) {
     .replace(/[^a-z0-9]+/g, '')
 }
 
+function normUrl(u) {
+  if (!u) return ''
+  try {
+    const url = new URL(String(u))
+    url.hash = ''
+    // Remove tracking noise where possible
+    for (const k of ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','fbclid','gclid']) {
+      url.searchParams.delete(k)
+    }
+    return url.toString()
+  } catch {
+    return String(u).split('#')[0]
+  }
+}
+
+function canonicalTitle(titre, theatre_nom) {
+  let t = String(titre || '').trim()
+  const venue = String(theatre_nom || '').trim()
+
+  // Remove common suffixes like "— VENUE" or "| VENUE" (case-insensitive)
+  if (venue) {
+    const escaped = venue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    t = t.replace(new RegExp(`\s*(?:—|\-|\||:)?\s*${escaped}\s*$`, 'i'), '').trim()
+  }
+
+  // Collapse whitespace
+  t = t.replace(/\s+/g, ' ').trim()
+  return t
+}
+
+// Fingerprint strategy (important):
+// - Prefer a public event/ticket URL when available (stable across reruns)
+// - Otherwise fallback to (theatre + date + time + canonicalized title)
+// Avoid including source/source_url in the primary identity to prevent duplicates.
 export function computeFingerprint({
-  source,
+  url,
   source_url,
   date,
   heure,
   theatre_nom,
   titre,
 }) {
+  const keyUrl = normUrl(url || source_url)
   const base = [
-    source || '',
-    source_url || '',
+    keyUrl,
     date || '',
     heure || '',
     normKey(theatre_nom || ''),
-    normKey(titre || ''),
+    normKey(canonicalTitle(titre, theatre_nom)),
   ].join('|')
 
   return crypto.createHash('sha1').update(base).digest('hex')

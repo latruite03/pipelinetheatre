@@ -4,9 +4,12 @@ import { fetchOgImage } from '../enrich/ogImage.mjs'
 export async function upsertRepresentations(reps) {
   const supabase = getSupabaseAdmin()
 
+  // Safety: never publish explicit non-theatre items
+  const incoming = (reps || []).filter((r) => r && r.is_theatre !== false)
+
   // De-dup by fingerprint to avoid ON CONFLICT affecting the same row twice
   const seen = new Map()
-  for (const r of reps || []) {
+  for (const r of incoming) {
     if (!r?.fingerprint) continue
     if (!seen.has(r.fingerprint)) seen.set(r.fingerprint, r)
   }
