@@ -77,8 +77,10 @@ export async function loadWHalll({ maxPages = 10 } = {}) {
       const heure = formatTime(timePart || '')
       const titre = decodeHtmlEntities(item.name || 'Event').trim()
 
-      const theatre_nom = item.location?.name || 'W:Halll'
-      const theatre_adresse = buildAddress(item.location?.address)
+      // IMPORTANT: keep theatre_nom as the monitored venue name (not the internal room name)
+      // item.location.name can be "Auditorium", "Salle Capart", etc.
+      const theatre_nom = 'W:Halll'
+      const theatre_adresse = buildAddress(item.location?.address) || 'Avenue Charles Thielemans 93, 1150 Woluwe-Saint-Pierre'
 
       const urlOut = item.url || url
       const is_complet = /complet|sold out|uitverkocht/i.test(`${titre} ${urlOut}`)
@@ -95,6 +97,7 @@ export async function loadWHalll({ maxPages = 10 } = {}) {
         genre: null,
         style: null,
         is_complet: !!is_complet,
+        is_theatre: true,
       }
 
       rep.fingerprint = computeFingerprint(rep)
