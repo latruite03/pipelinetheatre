@@ -44,6 +44,10 @@ function parseIdsFromHtml(html) {
 }
 
 export async function loadToone() {
+  // Thom explicitly wants Toone excluded (marionettes).
+  // Returning empty prevents re-ingesting deleted rows.
+  if (process.env.EXCLUDE_TOONE !== '0') return []
+
   const html = await (await fetch(REPERTOIRE_URL, FETCH_OPTS)).text()
   const ids = parseIdsFromHtml(html)
 
