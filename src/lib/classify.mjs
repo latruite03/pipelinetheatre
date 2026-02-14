@@ -19,8 +19,9 @@ const NEG = [
   'projection', 'cinema', 'cinema', 'film',
   // talks/workshops
   'conference', 'conférence', 'rencontre', 'masterclass', 'workshop', 'atelier',
-  // other performing arts (depends on your definition)
-  'dance', 'danse',
+  // stand-up must be excluded
+  'stand up', 'stand-up', 'humour',
+  // NOTE: Thom wants to KEEP dance items (danse oui)
 ]
 
 // Strong theatre signals (include)
@@ -33,6 +34,8 @@ const POS = [
   'comedie', 'comédie',
   'drame', 'tragedie', 'tragédie',
   'seul en scene', 'seul en scène',
+  // explicitly allowed
+  'lecture-spectacle', 'lecture spectacle',
 ]
 
 // Some phrases are ambiguous, keep as slight negatives only
