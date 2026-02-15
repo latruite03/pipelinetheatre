@@ -18,7 +18,7 @@ const NEG = [
   // cinema
   'projection', 'cinema', 'cinema', 'film',
   // talks/workshops
-  'conference', 'conférence', 'rencontre', 'masterclass', 'workshop', 'atelier',
+  'conference', 'conférence', 'rencontre', 'masterclass', 'workshop', 'atelier', 'stage',
   // stand-up must be excluded
   'stand up', 'stand-up', 'humour',
   // NOTE: Thom wants to KEEP dance items (danse oui)

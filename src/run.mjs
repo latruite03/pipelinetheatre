@@ -39,6 +39,8 @@ import { loadLe140 } from './connectors/le140.mjs'
 import { loadImproviste } from './connectors/improviste.mjs'
 import { loadBeursschouwburg } from './connectors/beursschouwburg.mjs'
 import { loadHallesDeSchaerbeek } from './connectors/halles.mjs'
+import { loadVolter } from './connectors/volter.mjs'
+import { loadTheatreDeLaVie } from './connectors/theatredelavie.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { enrichGenreStyle } from './enrich/genreStyle.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
@@ -86,6 +88,8 @@ Usage:
   node src/run.mjs improviste
   node src/run.mjs beursschouwburg
   node src/run.mjs halles
+  node src/run.mjs volter
+  node src/run.mjs theatredelavie
   node src/run.mjs enrich theatreduparc
   node src/run.mjs enrich genrestyle
 
@@ -422,6 +426,24 @@ async function main() {
   if (mode === 'halles') {
     const reps = await loadHallesDeSchaerbeek()
     console.log(`Loaded ${reps.length} rows from Les Halles de Schaerbeek (2026-01-01 to 2026-06-30)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'volter') {
+    const reps = await loadVolter()
+    console.log(`Loaded ${reps.length} rows from Comédie Royale Claude Volter (generated from official date ranges)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'theatredelavie') {
+    const reps = await loadTheatreDeLaVie()
+    console.log(`Loaded ${reps.length} rows from Théâtre de la Vie (auto-filter theatre-only, 2026-01-01 to 2026-06-30)`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
