@@ -85,13 +85,34 @@ function extractOgImage(html) {
   return m ? m[1] : null
 }
 
+function decodeHtmlEntities(s) {
+  let out = String(s || '')
+  out = out
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#0*39;/g, "'")
+
+  // numeric entities
+  out = out.replace(/&#(\d+);/g, (_, n) => {
+    const code = Number(n)
+    if (!Number.isFinite(code)) return _
+    try { return String.fromCharCode(code) } catch { return _ }
+  })
+
+  return out
+}
+
 function stripTags(html) {
-  return String(html || '')
+  const txt = String(html || '')
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+  return decodeHtmlEntities(txt)
 }
 
 async function fetchText(url) {
@@ -104,151 +125,109 @@ async function fetchText(url) {
   return await res.text()
 }
 
-export async function loadTheatreDeLaVie({ limitShows = 60 } = {}) {
-  const saisonUrl = 'https://theatredelavie.be/?page=saisons'
-  const html = await fetchText(saisonUrl)
+export async function loadTheatreDeLaVie({ limitMonths = 6 } = {}) {
+  // New strategy (site is tricky): use the MONTH view, which exposes each occurrence with
+  // day-of-month + time + category + link.
+  // URLs: /?page=mois&mois=YYYY-MM-01
 
-  // Parse the season list directly (contains date + title + link)
-  // Example structure:
-  // <li class="liste-saison"><a href="/agenda/saison-2025-2026/.../"><ul class="liste-event">
-  //   <li><span class="date">13.09.2025</span></li>
-  //   <li><span>Ouverture de saison</span></li>
-  //   <li><span>Théâtre de la Vie</span></li>
-  // </ul></a></li>
+  const months = ['2026-01-01','2026-02-01','2026-03-01','2026-04-01','2026-05-01','2026-06-01'].slice(0, limitMonths)
 
-  const items = []
-  const liRe = /<li\s+class=["']liste-saison["'][^>]*>[\s\S]*?<a\s+href=["']([^"']+)["'][^>]*>[\s\S]*?<span\s+class=["']date["']\s*>\s*([0-9]{2}\.[0-9]{2}\.[0-9]{4})\s*<\/span>[\s\S]*?<ul\s+class=["']liste-event["'][^>]*>[\s\S]*?<li>\s*<span>\s*([^<]+?)\s*<\/span>\s*<\/li>[\s\S]*?<li>\s*<span>\s*([^<]+?)\s*<\/span>\s*<\/li>[\s\S]*?<\/a>/gi
+  const excludedTitle = [
+    'lundynamite',
+    'scene de travers', 'scène de travers',
+    'scene ouverte', 'scène ouverte',
+    'sortie de residence', 'sortie de résidence',
+    'atelier', 'stage',
+    'queeriosity',
+    'lecture',
+  ]
+  const excludedCats = ['concert','atelier','soiree','soirée','scene.ouverte','scène.ouverte','sortie','hors']
 
-  for (const m of html.matchAll(liRe)) {
-    const href = absUrl(m[1])
-    const dateFr = m[2]
-    const titre = (m[3] || '').trim()
-    const lieu = (m[4] || '').trim()
-
-    if (!href || !titre || !dateFr) continue
-
-    const [dd, mm, yyyy] = dateFr.split('.')
-    const date = `${yyyy}-${mm}-${dd}`
-    if (date < '2026-01-01' || date > '2026-06-30') continue
-
-    items.push({ date, titre, url: href, lieu })
+  function isExcluded(s) {
+    const t = norm(s)
+    return excludedTitle.some((k) => t.includes(norm(k)))
   }
 
-  // If the regex ever fails (site change), fallback to a looser URL scrape
-  if (items.length === 0) {
-    const hrefs = Array.from(html.matchAll(/href=["']([^"']*\/agenda\/saison-2025-2026\/[^"']+)["']/gi))
-      .map((m) => absUrl(m[1]))
-      .filter(Boolean)
-    const uniq = Array.from(new Set(hrefs))
-    for (const u of uniq.slice(0, limitShows)) {
-      items.push({ date: null, titre: u, url: u, lieu: null })
+  // Cache detail pages per URL (title/description/image)
+  const showCache = new Map()
+
+  async function getShowMeta(url) {
+    if (showCache.has(url)) return showCache.get(url)
+    try {
+      const html = await fetchText(url)
+      const text = stripTags(html)
+      const image_url = extractOgImage(html)
+      const meta = { description: text.slice(0, 1000), image_url, rawText: text }
+      showCache.set(url, meta)
+      return meta
+    } catch {
+      const meta = { description: null, image_url: null, rawText: '' }
+      showCache.set(url, meta)
+      return meta
     }
   }
 
   const reps = []
-  for (const it of items.slice(0, limitShows)) {
-    let description = null
-    let image_url = null
 
-    // Try to enrich from detail page (best effort)
-    try {
-      const showHtml = await fetchText(it.url)
-      const text = stripTags(showHtml)
-      description = text.slice(0, 900)
-      image_url = extractOgImage(showHtml)
+  for (const m0 of months) {
+    const monthUrl = `${SOURCE}/?page=mois&mois=${m0}`
+    const html = await fetchText(monthUrl)
 
-      // Sometimes the detail page contains a date range; if so, expand it
-      const range = parseDateRange(text)
-      if (range && !(range.end < '2026-01-01' || range.start > '2026-06-30')) {
-        for (const d of eachDayInclusive(range.start, range.end)) {
-          const date = toISODate(d)
-          if (date < '2026-01-01' || date > '2026-06-30') continue
-          const rep = {
-            source: SOURCE,
-            source_url: saisonUrl,
-            date,
-            heure: null,
-            titre: it.titre,
-            theatre_nom: THEATRE_NOM,
-            theatre_adresse: THEATRE_ADRESSE,
-            url: it.url,
-            genre: null,
-            style: null,
-            is_theatre: true,
-            ...(description ? { description } : {}),
-            ...(image_url ? { image_url } : {}),
-          }
-          const tNorm = norm(it.titre)
-          if (
-            tNorm.includes('lundynamite') ||
-            tNorm.includes('scene de travers') ||
-            tNorm.includes('scène de travers') ||
-            tNorm.includes('scene ouverte') ||
-            tNorm.includes('scène ouverte') ||
-            tNorm.includes('sortie de residence') ||
-            tNorm.includes('sortie de résidence') ||
-            tNorm.includes('residence') ||
-            tNorm.includes('résidence') ||
-            tNorm.includes('atelier') ||
-            tNorm.includes('stage')
-          ) {
-            continue
-          }
+    const [year, month] = m0.split('-')
 
-          const { ok } = shouldEmitTheatre(rep, { strict: true })
-          if (!ok) continue
-          rep.fingerprint = computeFingerprint(rep)
-          reps.push(rep)
-        }
-        continue
+    // Event blocks have ids like: pop1monday%02 / pop2wednesday%04 (day-of-month embedded)
+    // They wrap an <a href="/agenda/.../"> ... "HH:MM — category — « title » ..."
+    const re = /<a[^>]+href=["']([^"']*\/agenda\/[^"']+)["'][^>]*>\s*<div\s+id=["']pop\d+[a-z]+%([0-9]{2})["'][\s\S]*?<div\s+class=["'][^"']*pd8-text-component[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi
+
+    for (const mmatch of html.matchAll(re)) {
+      const href = absUrl(mmatch[1])
+      const day = mmatch[2]
+      const inner = stripTags(mmatch[3])
+
+      if (!href || !day) continue
+
+      const date = `${year}-${month}-${day}`
+      if (date < '2026-01-01' || date > '2026-06-30') continue
+
+      // Parse time + category + title from the rendered text
+      const timeMatch = inner.match(/\b(\d{1,2}:\d{2})\b/)
+      const heure = timeMatch ? timeMatch[1] : null
+
+      const catMatch = inner.match(/—\s*([^—]+?)\s*—/)
+      const category = catMatch ? catMatch[1].trim() : null
+
+      const titleMatch = inner.match(/«\s*([^»]+)\s*»/)
+      const titre = titleMatch ? titleMatch[1].trim() : inner.split('—').pop()?.trim()?.slice(0, 120)
+
+      if (!titre) continue
+      if (isExcluded(titre)) continue
+      if (category && excludedCats.some((c) => norm(category).includes(norm(c)))) continue
+
+      // Detail page check to keep plays only
+      const meta = await getShowMeta(href)
+      const rep = {
+        source: SOURCE,
+        source_url: monthUrl,
+        date,
+        heure,
+        titre,
+        theatre_nom: THEATRE_NOM,
+        theatre_adresse: THEATRE_ADRESSE,
+        url: href,
+        genre: null,
+        style: null,
+        is_theatre: true,
+        ...(meta.description ? { description: meta.description } : {}),
+        ...(meta.image_url ? { image_url: meta.image_url } : {}),
       }
-    } catch {
-      // ignore
+
+      // Require explicit theatre signals in title/description (strict)
+      const { ok } = shouldEmitTheatre(rep, { strict: true })
+      if (!ok) continue
+
+      rep.fingerprint = computeFingerprint(rep)
+      reps.push(rep)
     }
-
-    // Otherwise: use the single date from the season list
-    if (!it.date) continue
-
-    // Strict mode for Thom: keep plays only (exclude scene ouverte / lundynamite / residencies / workshops)
-    const tNorm = norm(it.titre)
-    if (
-      tNorm.includes('lundynamite') ||
-      tNorm.includes('scene de travers') ||
-      tNorm.includes('scène de travers') ||
-      tNorm.includes('scene ouverte') ||
-      tNorm.includes('scène ouverte') ||
-      tNorm.includes('sortie de residence') ||
-      tNorm.includes('sortie de résidence') ||
-      tNorm.includes('residence') ||
-      tNorm.includes('résidence') ||
-      tNorm.includes('atelier') ||
-      tNorm.includes('stage')
-    ) {
-      continue
-    }
-
-    const rep = {
-      source: SOURCE,
-      source_url: saisonUrl,
-      date: it.date,
-      heure: null,
-      titre: it.titre,
-      theatre_nom: THEATRE_NOM,
-      theatre_adresse: THEATRE_ADRESSE,
-      url: it.url,
-      genre: null,
-      style: null,
-      is_theatre: true,
-      ...(description ? { description } : {}),
-      ...(image_url ? { image_url } : {}),
-    }
-
-    // Require explicit theatre signals
-    const { ok } = shouldEmitTheatre(rep, { strict: true })
-    if (!ok) continue
-
-    rep.fingerprint = computeFingerprint(rep)
-    reps.push(rep)
   }
 
   // De-dup on fingerprint
