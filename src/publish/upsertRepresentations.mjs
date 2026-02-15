@@ -4,8 +4,13 @@ import { fetchOgImage } from '../enrich/ogImage.mjs'
 export async function upsertRepresentations(reps) {
   const supabase = getSupabaseAdmin()
 
+  // Agenda policy: keep only upcoming items (>= today) unless overridden.
+  const MIN_DATE = process.env.MIN_DATE || new Date().toISOString().slice(0, 10)
+
   // Safety: never publish explicit non-theatre items
-  const incoming = (reps || []).filter((r) => r && r.is_theatre !== false)
+  const incoming = (reps || [])
+    .filter((r) => r && r.is_theatre !== false)
+    .filter((r) => !r?.date || r.date >= MIN_DATE)
 
   // De-dup by fingerprint to avoid ON CONFLICT affecting the same row twice
   const seen = new Map()

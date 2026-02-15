@@ -103,14 +103,19 @@ async function main() {
   const [mode, arg] = process.argv.slice(2)
   if (!mode || mode === '--help' || mode === '-h') return usage()
 
+  // Agenda policy: keep only upcoming items (>= today) unless explicitly overridden.
+  const MIN_DATE = process.env.MIN_DATE || new Date().toISOString().slice(0, 10)
+  const keepUpcoming = (reps) => (reps || []).filter((r) => r?.date && r.date >= MIN_DATE)
+
   if (mode === 'csv') {
     if (!arg) {
       console.error('Missing CSV path')
       process.exit(1)
     }
     const filePath = path.resolve(process.cwd(), arg)
-    const reps = await loadFromCsv({ filePath })
-    console.log(`Loaded ${reps.length} rows from CSV`)
+    let reps = await loadFromCsv({ filePath })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from CSV (>=${MIN_DATE})`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
@@ -118,8 +123,9 @@ async function main() {
   }
 
   if (mode === 'theatreduparc') {
-    const reps = await loadTheatreDuParc({ limitEvents: 20 })
-    console.log(`Loaded ${reps.length} rows from Théâtre du Parc`)
+    let reps = await loadTheatreDuParc({ limitEvents: 20 })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from Théâtre du Parc (>=${MIN_DATE})`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
@@ -127,8 +133,9 @@ async function main() {
   }
 
   if (mode === 'balsamine') {
-    const reps = await loadBalsamine({ limitPosts: 12 })
-    console.log(`Loaded ${reps.length} rows from la Balsamine`)
+    let reps = await loadBalsamine({ limitPosts: 12 })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from la Balsamine (>=${MIN_DATE})`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
