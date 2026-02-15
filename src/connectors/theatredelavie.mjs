@@ -177,7 +177,24 @@ export async function loadTheatreDeLaVie({ limitShows = 60 } = {}) {
             ...(description ? { description } : {}),
             ...(image_url ? { image_url } : {}),
           }
-          const { ok } = shouldEmitTheatre(rep, { strict: false })
+          const tNorm = norm(it.titre)
+          if (
+            tNorm.includes('lundynamite') ||
+            tNorm.includes('scene de travers') ||
+            tNorm.includes('scène de travers') ||
+            tNorm.includes('scene ouverte') ||
+            tNorm.includes('scène ouverte') ||
+            tNorm.includes('sortie de residence') ||
+            tNorm.includes('sortie de résidence') ||
+            tNorm.includes('residence') ||
+            tNorm.includes('résidence') ||
+            tNorm.includes('atelier') ||
+            tNorm.includes('stage')
+          ) {
+            continue
+          }
+
+          const { ok } = shouldEmitTheatre(rep, { strict: true })
           if (!ok) continue
           rep.fingerprint = computeFingerprint(rep)
           reps.push(rep)
@@ -190,6 +207,24 @@ export async function loadTheatreDeLaVie({ limitShows = 60 } = {}) {
 
     // Otherwise: use the single date from the season list
     if (!it.date) continue
+
+    // Strict mode for Thom: keep plays only (exclude scene ouverte / lundynamite / residencies / workshops)
+    const tNorm = norm(it.titre)
+    if (
+      tNorm.includes('lundynamite') ||
+      tNorm.includes('scene de travers') ||
+      tNorm.includes('scène de travers') ||
+      tNorm.includes('scene ouverte') ||
+      tNorm.includes('scène ouverte') ||
+      tNorm.includes('sortie de residence') ||
+      tNorm.includes('sortie de résidence') ||
+      tNorm.includes('residence') ||
+      tNorm.includes('résidence') ||
+      tNorm.includes('atelier') ||
+      tNorm.includes('stage')
+    ) {
+      continue
+    }
 
     const rep = {
       source: SOURCE,
@@ -206,7 +241,8 @@ export async function loadTheatreDeLaVie({ limitShows = 60 } = {}) {
       ...(image_url ? { image_url } : {}),
     }
 
-    const { ok } = shouldEmitTheatre(rep, { strict: false })
+    // Require explicit theatre signals
+    const { ok } = shouldEmitTheatre(rep, { strict: true })
     if (!ok) continue
 
     rep.fingerprint = computeFingerprint(rep)
