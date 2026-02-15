@@ -174,6 +174,7 @@ export async function loadTheatreDeLaVie({ limitShows = 60 } = {}) {
             url: it.url,
             genre: null,
             style: null,
+            is_theatre: true,
             ...(description ? { description } : {}),
             ...(image_url ? { image_url } : {}),
           }
@@ -237,6 +238,7 @@ export async function loadTheatreDeLaVie({ limitShows = 60 } = {}) {
       url: it.url,
       genre: null,
       style: null,
+      is_theatre: true,
       ...(description ? { description } : {}),
       ...(image_url ? { image_url } : {}),
     }
