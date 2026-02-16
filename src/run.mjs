@@ -37,6 +37,8 @@ import { loadNovum } from './connectors/novum.mjs'
 import { loadLePublic } from './connectors/lepublic.mjs'
 import { loadCCUccle } from './connectors/uccle.mjs'
 import { loadWolubilis } from './connectors/wolubilis.mjs'
+import { loadKriekelaar } from './connectors/kriekelaar.mjs'
+import { loadOsAMoelle } from './connectors/osamoelle.mjs'
 import { loadLe140 } from './connectors/le140.mjs'
 import { loadJacquesFranck } from './connectors/jacquesfranck.mjs'
 import { loadMaisonPoeme } from './connectors/maisonpoeme.mjs'
@@ -94,6 +96,8 @@ Usage:
   node src/run.mjs lepublic
   node src/run.mjs uccle
   node src/run.mjs wolubilis
+  node src/run.mjs kriekelaar
+  node src/run.mjs osamoelle
   node src/run.mjs le140
   node src/run.mjs jacquesfranck
   node src/run.mjs maisonpoeme
@@ -432,6 +436,24 @@ async function main() {
   if (mode === 'wolubilis') {
     const reps = await loadWolubilis()
     console.log(`Loaded ${reps.length} rows from Wolubilis (stub)`) 
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'kriekelaar') {
+    const reps = await loadKriekelaar()
+    console.log(`Loaded ${reps.length} rows from GC De Kriekelaar (stub)`) 
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'osamoelle') {
+    const reps = await loadOsAMoelle()
+    console.log(`Loaded ${reps.length} rows from L’Os à Moelle (stub)`) 
 
     const res = await upsertRepresentations(reps)
     console.log(res)
