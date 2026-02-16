@@ -92,6 +92,7 @@ Usage:
   node src/run.mjs le140
   node src/run.mjs jacquesfranck
   node src/run.mjs maisonpoeme
+  node src/run.mjs poche
   node src/run.mjs improviste
   node src/run.mjs beursschouwburg
   node src/run.mjs halles
@@ -436,6 +437,16 @@ async function main() {
     let reps = await loadMaisonPoeme({ minDate: MIN_DATE, maxDate: '2026-06-30' })
     reps = keepUpcoming(reps)
     console.log(`Loaded ${reps.length} upcoming rows from Maison Poème (WP REST event CPT, theatre-ish only, >=${MIN_DATE})`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'poche') {
+    let reps = await loadPoche({ minDate: MIN_DATE, maxDate: '2026-06-30' })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from Théâtre de Poche (homepage listing, start-date per show, >=${MIN_DATE})`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
