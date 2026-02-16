@@ -113,6 +113,11 @@ function parseDatesWithTimes(html) {
 }
 
 export async function loadMarni() {
+  // This connector can be slow (sitemap + per-show fetch). Keep opt-in.
+  if (process.env.MARNI_LIVE !== '1') {
+    console.log('Marni: live fetch disabled (set MARNI_LIVE=1 to enable). Returning 0 rows.')
+    return []
+  }
   const sitemapXml = await (await fetch(SITEMAP, FETCH_OPTS)).text()
   const urls = parseSitemapUrls(sitemapXml)
   const limit = process.env.MARNI_LIMIT ? Number(process.env.MARNI_LIMIT) : 300

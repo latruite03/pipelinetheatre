@@ -218,6 +218,11 @@ function parseCalendarEntries(html) {
 }
 
 export async function loadLeRideau() {
+  // This connector can be slow (season page + per-show fetch). Keep opt-in.
+  if (process.env.LERIDEAU_LIVE !== '1') {
+    console.log('Le Rideau: live fetch disabled (set LERIDEAU_LIVE=1 to enable). Returning 0 rows.')
+    return []
+  }
   const seasonHtml = await (await fetch(SEASON_URL, FETCH_OPTS)).text()
   const spectacleUrls = parseSpectacleLinksFromSeason(seasonHtml)
 
