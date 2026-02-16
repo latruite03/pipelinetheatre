@@ -39,6 +39,8 @@ import { loadCCUccle } from './connectors/uccle.mjs'
 import { loadWolubilis } from './connectors/wolubilis.mjs'
 import { loadKriekelaar } from './connectors/kriekelaar.mjs'
 import { loadOsAMoelle } from './connectors/osamoelle.mjs'
+import { loadCoteVillage } from './connectors/cotevillage.mjs'
+import { loadJoliBois } from './connectors/jolibois.mjs'
 import { loadLe140 } from './connectors/le140.mjs'
 import { loadJacquesFranck } from './connectors/jacquesfranck.mjs'
 import { loadMaisonPoeme } from './connectors/maisonpoeme.mjs'
@@ -98,6 +100,8 @@ Usage:
   node src/run.mjs wolubilis
   node src/run.mjs kriekelaar
   node src/run.mjs osamoelle
+  node src/run.mjs cotevillage
+  node src/run.mjs jolibois
   node src/run.mjs le140
   node src/run.mjs jacquesfranck
   node src/run.mjs maisonpoeme
@@ -453,7 +457,25 @@ async function main() {
 
   if (mode === 'osamoelle') {
     const reps = await loadOsAMoelle()
-    console.log(`Loaded ${reps.length} rows from L’Os à Moelle (stub)`) 
+    console.log(`Loaded ${reps.length} rows from L’Os à Moelle (stand-up only)`) 
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'cotevillage') {
+    const reps = await loadCoteVillage()
+    console.log(`Loaded ${reps.length} rows from Côté Village (stub)`) 
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'jolibois') {
+    const reps = await loadJoliBois()
+    console.log(`Loaded ${reps.length} rows from Théâtre de Joli-Bois (stub)`) 
 
     const res = await upsertRepresentations(reps)
     console.log(res)
