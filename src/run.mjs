@@ -37,6 +37,7 @@ import { loadNovum } from './connectors/novum.mjs'
 import { loadLePublic } from './connectors/lepublic.mjs'
 import { loadLe140 } from './connectors/le140.mjs'
 import { loadJacquesFranck } from './connectors/jacquesfranck.mjs'
+import { loadMaisonPoeme } from './connectors/maisonpoeme.mjs'
 import { loadImproviste } from './connectors/improviste.mjs'
 import { loadBeursschouwburg } from './connectors/beursschouwburg.mjs'
 import { loadHallesDeSchaerbeek } from './connectors/halles.mjs'
@@ -90,6 +91,7 @@ Usage:
   node src/run.mjs lepublic
   node src/run.mjs le140
   node src/run.mjs jacquesfranck
+  node src/run.mjs maisonpoeme
   node src/run.mjs improviste
   node src/run.mjs beursschouwburg
   node src/run.mjs halles
@@ -424,6 +426,16 @@ async function main() {
     let reps = await loadJacquesFranck({ minDate: MIN_DATE, maxDate: '2026-06-30' })
     reps = keepUpcoming(reps)
     console.log(`Loaded ${reps.length} upcoming rows from Centre culturel Jacques Franck (agenda pages, theatre-only, >=${MIN_DATE})`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'maisonpoeme') {
+    let reps = await loadMaisonPoeme({ minDate: MIN_DATE, maxDate: '2026-06-30' })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from Maison Poème (WP REST event CPT, theatre-ish only, >=${MIN_DATE})`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
