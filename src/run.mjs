@@ -38,6 +38,7 @@ import { loadLePublic } from './connectors/lepublic.mjs'
 import { loadLe140 } from './connectors/le140.mjs'
 import { loadJacquesFranck } from './connectors/jacquesfranck.mjs'
 import { loadMaisonPoeme } from './connectors/maisonpoeme.mjs'
+import { loadKoeks } from './connectors/koeks.mjs'
 import { loadImproviste } from './connectors/improviste.mjs'
 import { loadBeursschouwburg } from './connectors/beursschouwburg.mjs'
 import { loadHallesDeSchaerbeek } from './connectors/halles.mjs'
@@ -92,6 +93,7 @@ Usage:
   node src/run.mjs le140
   node src/run.mjs jacquesfranck
   node src/run.mjs maisonpoeme
+  node src/run.mjs koeks
   node src/run.mjs poche
   node src/run.mjs improviste
   node src/run.mjs beursschouwburg
@@ -437,6 +439,16 @@ async function main() {
     let reps = await loadMaisonPoeme({ minDate: MIN_DATE, maxDate: '2026-06-30' })
     reps = keepUpcoming(reps)
     console.log(`Loaded ${reps.length} upcoming rows from Maison Poème (WP REST event CPT, theatre-ish only, >=${MIN_DATE})`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'koeks') {
+    let reps = await loadKoeks({ minDate: MIN_DATE, maxDate: '2026-06-30' })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from Koek's Théâtre (site unavailable/parked; stub)`) 
 
     const res = await upsertRepresentations(reps)
     console.log(res)
