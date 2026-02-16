@@ -474,8 +474,8 @@ async function main() {
   }
 
   if (mode === 'jolibois') {
-    const reps = await loadJoliBois()
-    console.log(`Loaded ${reps.length} rows from Théâtre de Joli-Bois (stub)`) 
+    const reps = await loadJoliBois({ minDate: MIN_DATE, maxDate: '2026-06-30' })
+    console.log(`Loaded ${reps.length} rows from Centre communautaire de Joli-Bois (stand-up only)`) 
 
     const res = await upsertRepresentations(reps)
     console.log(res)
