@@ -36,11 +36,15 @@ import { loadWHalll } from './connectors/whalll.mjs'
 import { loadNovum } from './connectors/novum.mjs'
 import { loadLePublic } from './connectors/lepublic.mjs'
 import { loadLe140 } from './connectors/le140.mjs'
+import { loadJacquesFranck } from './connectors/jacquesfranck.mjs'
 import { loadImproviste } from './connectors/improviste.mjs'
 import { loadBeursschouwburg } from './connectors/beursschouwburg.mjs'
 import { loadHallesDeSchaerbeek } from './connectors/halles.mjs'
 import { loadVolter } from './connectors/volter.mjs'
 import { loadTheatreDeLaVie } from './connectors/theatredelavie.mjs'
+import { loadLavenerie } from './connectors/lavenerie.mjs'
+import { loadSenghor } from './connectors/senghor.mjs'
+import { loadJardinDeMaSoeur } from './connectors/jardindemasoer.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { enrichGenreStyle } from './enrich/genreStyle.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
@@ -85,11 +89,15 @@ Usage:
   node src/run.mjs novum
   node src/run.mjs lepublic
   node src/run.mjs le140
+  node src/run.mjs jacquesfranck
   node src/run.mjs improviste
   node src/run.mjs beursschouwburg
   node src/run.mjs halles
   node src/run.mjs volter
   node src/run.mjs theatredelavie
+  node src/run.mjs lavenerie
+  node src/run.mjs senghor
+  node src/run.mjs jardindemasoer
   node src/run.mjs enrich theatreduparc
   node src/run.mjs enrich genrestyle
 
@@ -412,6 +420,16 @@ async function main() {
     return
   }
 
+  if (mode === 'jacquesfranck') {
+    let reps = await loadJacquesFranck({ minDate: MIN_DATE, maxDate: '2026-06-30' })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from Centre culturel Jacques Franck (agenda pages, theatre-only, >=${MIN_DATE})`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
   if (mode === 'improviste') {
     const reps = await loadImproviste()
     console.log(`Loaded ${reps.length} rows from Théâtre l'Improviste (2026-01-01 to 2026-06-30)`)
@@ -449,8 +467,39 @@ async function main() {
   }
 
   if (mode === 'theatredelavie') {
-    const reps = await loadTheatreDeLaVie()
-    console.log(`Loaded ${reps.length} rows from Théâtre de la Vie (auto-filter theatre-only, 2026-01-01 to 2026-06-30)`)
+    let reps = await loadTheatreDeLaVie()
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from Théâtre de la Vie (plays-only, >=${MIN_DATE})`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'lavenerie') {
+    let reps = await loadLavenerie({ minDate: MIN_DATE, maxDate: '2026-06-30' })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from La Vénerie (meilisearch, plays-only, >=${MIN_DATE})`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'senghor') {
+    let reps = await loadSenghor({ minDate: MIN_DATE, maxDate: '2026-06-30' })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from Espace Senghor (meilisearch, theatre+representation, >=${MIN_DATE})`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'jardindemasoer') {
+    let reps = await loadJardinDeMaSoeur({ minDate: MIN_DATE, maxDate: '2026-06-30' })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from Le Jardin de ma Sœur (Squarespace event list, plays-only, >=${MIN_DATE})`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
