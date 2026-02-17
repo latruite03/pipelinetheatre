@@ -135,6 +135,20 @@ export async function loadMarni() {
     const image_url = parseImage(html)
     const description = parseDescription(html)
 
+    // Content policy: keep theatre; drop obvious music/concert/dance (especially festivals like Kidzik).
+    const hay = `${titre} ${description || ''}`.toLowerCase()
+    const NEG = [
+      'kidz' /* kidzik/kidzik */, 'festival kidz',
+      'concert', 'musique', 'dj', 'électro', 'electro', 'pop-électro', 'pop-electro',
+      'orchestre', 'chanson', 'piano', 'guitare',
+      'danse', 'choré', 'chore', 'chorégraph', 'chorégraphie', 'choregraph',
+      'ciné', 'cinema', 'projection',
+      'expo', 'exposition',
+    ]
+    if (NEG.some((w) => hay.includes(w))) {
+      continue
+    }
+
     const dates = parseDatesWithTimes(html)
     if (!dates.length) continue
 
