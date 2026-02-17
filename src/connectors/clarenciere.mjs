@@ -135,6 +135,30 @@ function pickPosterFromBlock(blockHtml, pageUrl) {
   return preferred ? toAbsUrl(preferred, pageUrl) : null
 }
 
+function pickDescriptionFromBlock(blockHtml, titre) {
+  // Try first paragraph after the title block
+  const afterTitle = String(blockHtml || '').split(/<\/h2>/i)[1] || ''
+  const p = afterTitle.match(/<p[^>]*>([\s\S]*?)<\/p>/i)?.[1]
+  const pText = stripTags(p || '')
+  const text = pText && pText.length > 20 ? pText : stripTags(afterTitle)
+
+  let t = text
+  // remove repeated title-ish words and agenda boilerplate
+  if (titre) {
+    const esc = titre.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    t = t.replace(new RegExp(esc, 'i'), ' ')
+  }
+  t = t
+    .replace(/Tout public\s*:/gi, ' ')
+    .replace(/P\.A\.F\.?/gi, ' ')
+    .replace(/R[eé]servations?.*$/i, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (!t) return null
+  return t.slice(0, 220)
+}
+
 function parseAgendaText(html, pageUrl) {
   const blocks = String(html).split(/<div[^>]+class="TitreSpectacle"/i)
   const events = []
@@ -145,6 +169,7 @@ function parseAgendaText(html, pageUrl) {
     if (!titre || isDeniedTitle(titre)) continue
 
     const image_url = pickPosterFromBlock(blockHtml, pageUrl)
+    const description = pickDescriptionFromBlock(blockHtml, titre)
 
     const cleaned = stripTags(blockHtml)
 
@@ -156,7 +181,7 @@ function parseAgendaText(html, pageUrl) {
       const dates = expandDates(dateLine)
       const heure = parseTime(dateLine)
       for (const date of dates) {
-        events.push({ titre, date, heure, image_url })
+        events.push({ titre, date, heure, image_url, description })
       }
     }
   }
@@ -213,7 +238,7 @@ export async function loadClarenciere({
       url: mainUrl,
       genre: null,
       style: null,
-      description: null,
+      description: it.description || null,
       image_url: it.image_url || null,
       is_theatre: true,
     }
