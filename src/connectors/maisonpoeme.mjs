@@ -34,6 +34,53 @@ function parseHeureFromHtml(html) {
   return `${hh}:${mm}`
 }
 
+const MONTHS = {
+  jan: '01',
+  janvier: '01',
+  fev: '02',
+  fév: '02',
+  fevr: '02',
+  févr: '02',
+  fevrier: '02',
+  février: '02',
+  mar: '03',
+  mars: '03',
+  avr: '04',
+  avril: '04',
+  mai: '05',
+  jun: '06',
+  juin: '06',
+  jui: '07',
+  juillet: '07',
+  aou: '08',
+  août: '08',
+  aout: '08',
+  sep: '09',
+  sept: '09',
+  septembre: '09',
+  oct: '10',
+  octobre: '10',
+  nov: '11',
+  novembre: '11',
+  dec: '12',
+  déc: '12',
+  decembre: '12',
+  décembre: '12',
+}
+
+function parseDateFromText(s) {
+  const txt = stripTags(s).toLowerCase()
+
+  // Pattern: "lun 13 Avr 2026" / "13 avr 2026"
+  const m = txt.match(/\b(\d{1,2})\s+([a-zéûîôàèç]{3,9})\.?\s+(\d{4})\b/i)
+  if (!m) return null
+  const dd = String(m[1]).padStart(2, '0')
+  const mm = MONTHS[m[2]]
+  const yyyy = m[3]
+  if (!mm) return null
+  return `${yyyy}-${mm}-${dd}`
+}
+
 function parseDateFromLink(link) {
   // links often start with /evenement/2026-...
   const m = String(link || '').match(/\/evenement\/(\d{4})-/)
@@ -43,15 +90,14 @@ function parseDateFromLink(link) {
 export async function loadMaisonPoeme({
   minDate = '2026-02-15',
   maxDate = '2026-06-30',
-  perPage = 20,
-  maxPages = 1,
+  perPage = 10,
+  maxPages = 3,
+  timeoutMs = 8000,
 } = {}) {
   const theatre_nom = 'Maison Poème'
   const theatre_adresse = 'Rue d’Écosse 30, 1060 Saint-Gilles'
 
-  // Repérage-first: this venue uses a WP REST custom post type "event".
-  // In practice the API payload can be heavy/slow; keep this connector safe by default.
-  // Enable live fetch explicitly when you want to invest time debugging/optimizing.
+  // This venue exposes a WP REST CPT "event". Keep payload minimal via `_fields`.
   if (process.env.MAISONPOEME_LIVE !== '1') {
     return []
   }
@@ -65,9 +111,24 @@ export async function loadMaisonPoeme({
     // no _embed: payload is huge otherwise
     url.searchParams.set('order', 'desc')
     url.searchParams.set('orderby', 'date')
+    // request minimal fields to avoid huge payload / hangs
+    url.searchParams.set(
+      '_fields',
+      [
+        'id',
+        'date',
+        'link',
+        'title',
+        'excerpt',
+        'content',
+        'featured_media',
+        'event-category',
+        'event-tag',
+      ].join(',')
+    )
 
     const ac = new AbortController()
-    const t = setTimeout(() => ac.abort(), 10000)
+    const t = setTimeout(() => ac.abort(), timeoutMs)
     const res = await fetch(url.toString(), {
       headers: { 'user-agent': 'Mozilla/5.0 (OpenClaw pipelinetheatre)' },
       signal: ac.signal,
@@ -85,15 +146,12 @@ export async function loadMaisonPoeme({
       const excerpt = stripTags(e?.excerpt?.rendered)
       const content = e?.content?.rendered || ''
 
-      // WordPress `date` here is publication date; the real event date is usually embedded in content.
-      // But their 2026 pages are actually published in 2026, so we can use the year signal + content time.
-      // We derive the date from the URL slug pattern /evenement/2026-... + publication year fallback.
+      // WP `date` is publication timestamp; actual event date is often present in content (e.g. "lun 13 Avr 2026 @ 19h30").
       const pubDate = e?.date ? String(e.date).slice(0, 10) : null
-      const yearFromLink = parseDateFromLink(link)
+      const dateFromContent = parseDateFromText(content) || parseDateFromText(excerpt)
 
-      // If link suggests 2026, use publication date as event date anchor (best available via API)
-      // This connector is primarily for "repérage"; it may be refined later if they expose real event dates explicitly.
-      const date = pubDate
+      // Prefer an explicit event date if found; otherwise fall back to publication date.
+      const date = dateFromContent || pubDate
 
       if (!date || date < minDate || date > maxDate) continue
 
