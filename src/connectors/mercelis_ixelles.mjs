@@ -35,7 +35,7 @@ function parseRelatedEventUrlsFromVenuePage(html) {
 
 function parseTitle(html) {
   const m = /<h2 class="event-title">([\s\S]*?)<\/h2>/i.exec(html)
-  if (m) return stripTags(decodeHtmlEntities(m[1]))
+  if (m) return stripTags(decodeHtmlEntities(m[1])).replace(/&#8211;/g, '–')
   const og = /<meta property="og:title" content="([^"]+)"/i.exec(html)?.[1]
   if (og) return decodeHtmlEntities(og).replace(/\s*-\s*Ixelles\s*$/i, '').trim()
   return null
@@ -204,8 +204,10 @@ function isTheatreCategory(cat) {
 }
 
 export async function loadMercelisIxelles() {
-  // Use the dedicated theatre category
-  const venueUrl = `${BASE}/fr/event/arts-de-la-scene/`
+  // Venue page (Petit Théâtre Mercelis)
+  // Note: the site also has a global category page /fr/event/arts-de-la-scene/
+  // but it mixes many venues (TTO, etc.). We must start from the Mercelis place page.
+  const venueUrl = `${BASE}/fr/places/petit-theatre-mercelis/`
   const venueHtml = await (await fetch(venueUrl)).text()
 
   const eventUrls = parseRelatedEventUrlsFromVenuePage(venueHtml)
