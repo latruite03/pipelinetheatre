@@ -42,6 +42,7 @@ import { loadOsAMoelle } from './connectors/osamoelle.mjs'
 import { loadCoteVillage } from './connectors/cotevillage.mjs'
 import { loadJoliBois } from './connectors/jolibois.mjs'
 import { loadClarenciere } from './connectors/clarenciere.mjs'
+import { loadTourAPlomb } from './connectors/touraplomb.mjs'
 import { loadLe140 } from './connectors/le140.mjs'
 import { loadJacquesFranck } from './connectors/jacquesfranck.mjs'
 import { loadMaisonPoeme } from './connectors/maisonpoeme.mjs'
@@ -104,6 +105,7 @@ Usage:
   node src/run.mjs cotevillage
   node src/run.mjs jolibois
   node src/run.mjs clarenciere
+  node src/run.mjs touraplomb
   node src/run.mjs le140
   node src/run.mjs jacquesfranck
   node src/run.mjs maisonpoeme
@@ -487,6 +489,15 @@ async function main() {
   if (mode === 'clarenciere') {
     const reps = await loadClarenciere({ minDate: MIN_DATE, maxDate: '2026-06-30' })
     console.log(`Loaded ${reps.length} rows from La Clarencière (small venue, permissive)`) 
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'touraplomb') {
+    const reps = await loadTourAPlomb()
+    console.log(`Loaded ${reps.length} rows from Tour à Plomb (stub, keep an eye)`) 
 
     const res = await upsertRepresentations(reps)
     console.log(res)
