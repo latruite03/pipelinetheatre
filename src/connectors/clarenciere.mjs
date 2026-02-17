@@ -162,9 +162,18 @@ export async function loadClarenciere({
   const main = agendaFrameHtml.match(/name="mainFrame"\s+src="([^"]+)"/i)?.[1]
   const mainUrl = main ? `${BASE}/${main}` : `${BASE}/SAISON_2025_2026/trismestre2.htm`
 
-  const html = await fetchHtml(mainUrl)
-  const text = html
-  const items = parseAgendaText(text)
+  // Also try trimester 3 (Apr-Jun) if present.
+  const tri3Url = `${BASE}/SAISON_2025_2026/trismestre3.htm`
+
+  const html2 = await fetchHtml(mainUrl)
+  let html3 = ''
+  try {
+    html3 = await fetchHtml(tri3Url)
+  } catch {
+    html3 = ''
+  }
+
+  const items = [...parseAgendaText(html2), ...parseAgendaText(html3)]
 
   const reps = []
   for (const it of items) {
