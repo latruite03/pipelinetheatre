@@ -635,8 +635,9 @@ async function main() {
   }
 
   if (mode === 'improviste') {
-    const reps = await loadImproviste()
-    console.log(`Loaded ${reps.length} rows from Théâtre l'Improviste (2026-01-01 to 2026-06-30)`)
+    let reps = await loadImproviste({ minDate: MIN_DATE, maxDate: '2026-06-30' })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from Théâtre l'Improviste (spectacles page, >=${MIN_DATE})`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
