@@ -169,6 +169,39 @@ function parseSpecificDates(html) {
   return out
 }
 
+function parseScolaireOccurrences(html) {
+  // Some event pages list school performances separately.
+  // We must exclude them from the public listing.
+  // Robust approach: convert to decoded plain text, locate the section header,
+  // then extract date + time pairs (including multiple times on the same date).
+  const text = stripTags(decodeHtmlEntities(html))
+  const idx = text.toLowerCase().indexOf('représentations scolaires')
+  if (idx === -1) return []
+
+  const section = text.slice(idx, idx + 1200)
+  const out = []
+
+  // Match one line/date, then pull all times that follow.
+  const reDate = /(\d{1,2})\s+(janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre)\s+(\d{4})([\s\S]{0,80})/gi
+  let m
+  while ((m = reDate.exec(section))) {
+    const day = String(m[1]).padStart(2, '0')
+    const month = MONTHS[m[2].toLowerCase()]
+    const year = m[3]
+    if (!month) continue
+
+    const tail = m[4] || ''
+    const timeMatches = [...tail.matchAll(/\b(\d{1,2})[:h](\d{2})\b/g)]
+    for (const tm of timeMatches) {
+      const hh = String(tm[1]).padStart(2, '0')
+      const mi = tm[2]
+      out.push({ date: `${year}-${month}-${day}`, heure: `${hh}:${mi}:00` })
+    }
+  }
+
+  return out
+}
+
 function toWeekdayFr(date) {
   // date: YYYY-MM-DD
   const d = new Date(`${date}T00:00:00Z`)
@@ -249,6 +282,15 @@ export async function loadMercelisIxelles() {
       const time = parseTime(html)
       if (single && time) occ = [{ date: single, heure: time }]
       if (!occ.length) occ = parseSpecificDates(html)
+    }
+
+    if (!occ.length) continue
+
+    // Filter out school performances ("représentations scolaires")
+    const scolaires = parseScolaireOccurrences(html)
+    if (scolaires.length) {
+      const deny = new Set(scolaires.map((x) => `${x.date}|${x.heure}`))
+      occ = occ.filter((x) => !deny.has(`${x.date}|${x.heure}`))
     }
 
     if (!occ.length) continue
