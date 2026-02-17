@@ -485,8 +485,8 @@ async function main() {
   }
 
   if (mode === 'clarenciere') {
-    const reps = await loadClarenciere()
-    console.log(`Loaded ${reps.length} rows from La Clarencière (stub)`) 
+    const reps = await loadClarenciere({ minDate: MIN_DATE, maxDate: '2026-06-30' })
+    console.log(`Loaded ${reps.length} rows from La Clarencière (small venue, permissive)`) 
 
     const res = await upsertRepresentations(reps)
     console.log(res)
