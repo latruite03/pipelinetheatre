@@ -13,6 +13,8 @@ import { loadCreaNova } from './connectors/creanova.mjs'
 import { loadAuditoriumJacquesBrel } from './connectors/auditoriumjbrel.mjs'
 import { loadBizou } from './connectors/bizou.mjs'
 import { loadEscaleDuNord } from './connectors/escaledunord.mjs'
+import { loadEntrela } from './connectors/entrela.mjs'
+import { loadDeACoudre } from './connectors/deacoudre.mjs'
 import { loadZinnema } from './connectors/zinnema.mjs'
 import { loadCCAuderghem } from './connectors/ccauderghem.mjs'
 import { loadArchipel19 } from './connectors/archipel19.mjs'
@@ -81,6 +83,8 @@ Usage:
   node src/run.mjs auditoriumjbrel
   node src/run.mjs bizou
   node src/run.mjs escaledunord
+  node src/run.mjs entrela
+  node src/run.mjs deacoudre
   node src/run.mjs zinnema
   node src/run.mjs ccauderghem
   node src/run.mjs archipel19
@@ -239,6 +243,24 @@ async function main() {
   if (mode === 'escaledunord') {
     const reps = await loadEscaleDuNord()
     console.log(`Loaded ${reps.length} rows from Escale du Nord (stub)`) 
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'entrela') {
+    const reps = await loadEntrela()
+    console.log(`Loaded ${reps.length} rows from L’Entrela’ (stub)`) 
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'deacoudre') {
+    const reps = await loadDeACoudre()
+    console.log(`Loaded ${reps.length} rows from Au Dé à Coudre (stub)`) 
 
     const res = await upsertRepresentations(reps)
     console.log(res)
