@@ -35,9 +35,18 @@ export async function upsertRepresentations(reps) {
     )
   }
 
-  // Functional de-dup (pre-fingerprint): same canonical URL + date + time + theatre.
-  // This prevents duplicates when a connector changes its title formatting between runs
-  // (e.g. KVS: "M.O.L." vs "M.O.L. (…)") but the event URL is identical.
+  function normTitle(t) {
+    return String(t || '')
+      .toLowerCase()
+      .replace(/[’‘`´]/g, "'")
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
+  // Functional de-dup (pre-fingerprint) — stage 1:
+  // same canonical URL + date + time + theatre.
+  // Prevents duplicates when only title formatting changes but URL stays identical.
   const byEventKey = new Map()
   for (const r of incoming) {
     const key = [
@@ -55,7 +64,30 @@ export async function upsertRepresentations(reps) {
     const cur = byEventKey.get(key)
     if (score(r) > score(cur)) byEventKey.set(key, r)
   }
-  const deduped = Array.from(byEventKey.values())
+
+  // Functional de-dup — stage 2:
+  // same date + time + theatre + normalized title (even if URL differs).
+  // This catches cases where the ticket URL changes between runs (or differs between sources)
+  // but it is clearly the same representation slot.
+  const bySlotKey = new Map()
+  for (const r of byEventKey.values()) {
+    const key = [
+      r?.date || '',
+      r?.heure || '',
+      String(r?.theatre_nom || '').trim().toLowerCase(),
+      normTitle(r?.titre),
+    ].join('|')
+
+    if (!bySlotKey.has(key)) {
+      bySlotKey.set(key, r)
+      continue
+    }
+
+    const cur = bySlotKey.get(key)
+    if (score(r) > score(cur)) bySlotKey.set(key, r)
+  }
+
+  const deduped = Array.from(bySlotKey.values())
 
   // De-dup by fingerprint to avoid ON CONFLICT affecting the same row twice
   const seen = new Map()

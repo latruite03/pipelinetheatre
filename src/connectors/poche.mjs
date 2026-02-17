@@ -45,6 +45,56 @@ function parseRangeDates(s) {
   }
 }
 
+function parseUtickActivityDetailsUrl(html) {
+  const m = String(html || '').match(/https:\/\/shop\.utick\.(?:be|net)\/\?[^"']*module=ACTIVITYSERIEDETAILS[^"']*/i)
+  return m ? m[0].replace(/&amp;/g, '&') : null
+}
+
+function parseUtickOccurrences(html, baseUrl) {
+  const out = []
+  const months = {
+    janvier: '01',
+    février: '02',
+    mars: '03',
+    avril: '04',
+    mai: '05',
+    juin: '06',
+    juillet: '07',
+    août: '08',
+    septembre: '09',
+    octobre: '10',
+    novembre: '11',
+    décembre: '12',
+  }
+
+  // Row pattern: "Le samedi 28 mars 2026" then time in next cell.
+  const re = /Le\s+(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+(\d{1,2})\s+(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+(20\d{2})[\s\S]{0,250}?\n\s*(\d{1,2}:\d{2})[\s\S]{0,400}?(?:href=\"([^\"]*module=QUANTITY[^\"]*)\")?/gi
+  let m
+  while ((m = re.exec(html))) {
+    const dd = String(m[2]).padStart(2, '0')
+    const mm = months[m[3].toLowerCase()]
+    const yyyy = m[4]
+    const time = m[5]
+    const date = mm ? `${yyyy}-${mm}-${dd}` : null
+    const q = m[6] ? m[6].replace(/&amp;/g, '&') : null
+    const url = q
+      ? (q.startsWith('http') ? q : `${baseUrl}${q.startsWith('?') ? q : '/' + q}`)
+      : null
+    if (date) out.push({ date, heure: `${time}:00`, url })
+  }
+
+  // uniq
+  const seen = new Set()
+  const res = []
+  for (const o of out) {
+    const k = `${o.date}|${o.heure}|${o.url || ''}`
+    if (seen.has(k)) continue
+    seen.add(k)
+    res.push(o)
+  }
+  return res
+}
+
 async function fetchHtml(url) {
   const res = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 (OpenClaw pipelinetheatre)' } })
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`)
@@ -83,9 +133,11 @@ async function fetchDetails(url) {
 
     const img = html.match(/property="og:image" content="([^"]+)"/i)?.[1] || null
 
-    return { description, image_url: img }
+    const utickActivityUrl = parseUtickActivityDetailsUrl(html)
+
+    return { description, image_url: img, utickActivityUrl, showHtml: html }
   } catch {
-    return { description: null, image_url: null }
+    return { description: null, image_url: null, utickActivityUrl: null, showHtml: null }
   }
 }
 
@@ -100,8 +152,7 @@ export async function loadPoche({
   const html = await fetchHtml(START_URL)
   const shows = parseHomepageShows(html)
 
-  // Use range end date as a proxy representation date so ongoing runs stay "upcoming".
-  const filtered = shows.filter((s) => s.endDate >= minDate && s.endDate <= maxDate).slice(0, limitShows)
+  const filtered = shows.filter((s) => s.endDate >= minDate && s.startDate <= maxDate).slice(0, limitShows)
 
   const detailsByUrl = new Map()
   for (const s of filtered) {
@@ -111,24 +162,41 @@ export async function loadPoche({
   const reps = []
   for (const s of filtered) {
     const details = detailsByUrl.get(s.url) || {}
+    const activityUrl = details.utickActivityUrl
 
-    const rep = {
-      source: SOURCE,
-      source_url: START_URL,
-      date: s.endDate,
-      heure: null,
-      titre: s.titre,
-      theatre_nom,
-      theatre_adresse,
-      url: s.url,
-      genre: null,
-      style: null,
-      description: details.description || null,
-      image_url: details.image_url || null,
-      is_theatre: true,
+    // If we can, emit real occurrences from Utick (prevents "heure à confirmer" duplicates)
+    let occ = []
+    if (activityUrl) {
+      try {
+        const actHtml = await fetchHtml(activityUrl)
+        const base = new URL(activityUrl).origin
+        occ = parseUtickOccurrences(actHtml, base)
+      } catch {
+        occ = []
+      }
     }
-    rep.fingerprint = computeFingerprint(rep)
-    reps.push(rep)
+
+    for (const o of occ) {
+      if (o.date < minDate || o.date > maxDate) continue
+
+      const rep = {
+        source: SOURCE,
+        source_url: START_URL,
+        date: o.date,
+        heure: o.heure,
+        titre: s.titre,
+        theatre_nom,
+        theatre_adresse,
+        url: o.url || activityUrl || s.url,
+        genre: null,
+        style: null,
+        description: details.description || null,
+        image_url: details.image_url || null,
+        is_theatre: true,
+      }
+      rep.fingerprint = computeFingerprint(rep)
+      reps.push(rep)
+    }
   }
 
   return reps
