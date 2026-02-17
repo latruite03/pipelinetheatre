@@ -88,7 +88,14 @@ function parseEventDetails(html) {
   const ticketMatch = html.match(/https?:\/\/[^"'\s>]*ticketmatic[^"'\s>]*/i)
   const ticketUrl = ticketMatch ? ticketMatch[0] : null
 
-  return { title, venue, ticketUrl }
+  const ogImage = /<meta\s+property="og:image"\s+content="([^"]+)"/i.exec(html)?.[1] || null
+  const image_url = ogImage ? stripTags(ogImage) : null
+
+  const ogDesc = /<meta\s+property="og:description"\s+content="([^"]+)"/i.exec(html)?.[1] || null
+  const desc = /<meta\s+name="description"\s+content="([^"]+)"/i.exec(html)?.[1] || null
+  const description = stripTags(desc || ogDesc || '') || null
+
+  return { title, venue, ticketUrl, image_url, description }
 }
 
 export async function loadBeursschouwburg({ maxPages = 20 } = {}) {
@@ -118,6 +125,8 @@ export async function loadBeursschouwburg({ maxPages = 20 } = {}) {
     const titre = details?.title || 'Event'
     const theatre_nom = details?.venue || 'Beursschouwburg'
     const url = details?.ticketUrl || entry.url
+    const image_url = details?.image_url || null
+    const description = details?.description || null
 
     const times = entry.times.length ? entry.times : [null]
     for (const heure of times) {
@@ -133,6 +142,9 @@ export async function loadBeursschouwburg({ maxPages = 20 } = {}) {
         genre: null,
         style: null,
         is_complet: !!entry.is_complet,
+        ...(image_url ? { image_url } : {}),
+        ...(description ? { description: description.slice(0, 600) } : {}),
+        is_theatre: true,
       }
       rep.fingerprint = computeFingerprint(rep)
       reps.push(rep)
