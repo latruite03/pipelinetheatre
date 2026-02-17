@@ -34,10 +34,37 @@ export async function upsertRepresentations(reps) {
     }
   }
 
+  // Normalize payload: keep only columns that exist in `representations`.
+  // (Some connectors may emit extra fields like `ticket_url`.)
+  const ALLOWED = [
+    'source',
+    'source_url',
+    'fingerprint',
+    'date',
+    'heure',
+    'titre',
+    'theatre_nom',
+    'theatre_adresse',
+    'url',
+    'genre',
+    'style',
+    'description',
+    'image_url',
+    'is_theatre',
+  ]
+
+  const cleaned = unique.map((r) => {
+    const out = {}
+    for (const k of ALLOWED) {
+      if (r[k] !== undefined) out[k] = r[k]
+    }
+    return out
+  })
+
   // NOTE: requires DB columns: source, source_url, fingerprint (unique), plus existing ones.
   const { data, error } = await supabase
     .from('representations')
-    .upsert(unique, { onConflict: 'fingerprint' })
+    .upsert(cleaned, { onConflict: 'fingerprint' })
     .select('id,fingerprint')
 
   if (error) throw new Error(error.message)
