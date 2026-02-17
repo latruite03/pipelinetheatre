@@ -111,6 +111,19 @@ function parseMetaDescription(activityHtml) {
   return m2 ? cleanText(m2[1]) : null
 }
 
+function isForeignVenue(activityHtml) {
+  const txt = stripDiacritics(cleanText(activityHtml).toLowerCase())
+  // Theatre National sometimes lists co-presentations hosted by KVS.
+  // We want to avoid duplicating KVS events.
+  if (txt.includes('kvs') && (txt.includes('theatre') || txt.includes('théâtre'))) {
+    // explicit arrow marker seen on pages: "Théâtre → KVS"
+    if (txt.includes('-> kvs') || txt.includes('→ kvs') || txt.includes('kvs.be')) return true
+  }
+  if (txt.includes('copresentation kvs') || txt.includes('coproduction kvs') || txt.includes('coprésentation kvs')) return true
+  if (txt.includes('kvs.be')) return true
+  return false
+}
+
 function parseCalendarDateTimes(activityHtml) {
   const out = []
   const parts = activityHtml.split('<li class="calendar__item"').slice(1)
@@ -157,6 +170,10 @@ export async function loadTheatreNational() {
 
   for (const it of items) {
     const activityHtml = await (await fetch(it.url, FETCH_OPTS)).text()
+
+    // Skip items that are clearly hosted at KVS (to avoid duplicates with the KVS connector)
+    if (isForeignVenue(activityHtml)) continue
+
     const image_url = parseOgImage(activityHtml)
     const description = parseMetaDescription(activityHtml)
     const dts = parseCalendarDateTimes(activityHtml)
