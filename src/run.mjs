@@ -227,8 +227,9 @@ async function main() {
   }
 
   if (mode === 'bizou') {
-    const reps = await loadBizou()
-    console.log(`Loaded ${reps.length} rows from Au B'Izou (stub)`) 
+    let reps = await loadBizou({ minDate: MIN_DATE, maxDate: '2026-06-30' })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from Au B'Izou`) 
 
     const res = await upsertRepresentations(reps)
     console.log(res)
