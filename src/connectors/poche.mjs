@@ -67,19 +67,21 @@ function parseUtickOccurrences(html, baseUrl) {
     décembre: '12',
   }
 
-  // Row pattern: "Le samedi 28 mars 2026" then time in next cell.
-  const re = /Le\s+(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+(\d{1,2})\s+(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+(20\d{2})[\s\S]{0,250}?\n\s*(\d{1,2}:\d{2})[\s\S]{0,400}?(?:href=\"([^\"]*module=QUANTITY[^\"]*)\")?/gi
+  // Row pattern: "Le samedi 28 mars 2026" then time; the QUANTITY link may be further away in the HTML.
+  const re = /Le\s+(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+(\d{1,2})\s+(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+(20\d{2})([\s\S]{0,2500}?)\b(\d{1,2}:\d{2})\b([\s\S]{0,2500}?)(?=Le\s+(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+\d{1,2}\s+|$)/gi
   let m
   while ((m = re.exec(html))) {
     const dd = String(m[2]).padStart(2, '0')
     const mm = months[m[3].toLowerCase()]
     const yyyy = m[4]
-    const time = m[5]
+    const time = m[6]
     const date = mm ? `${yyyy}-${mm}-${dd}` : null
-    const q = m[6] ? m[6].replace(/&amp;/g, '&') : null
-    const url = q
-      ? (q.startsWith('http') ? q : `${baseUrl}${q.startsWith('?') ? q : '/' + q}`)
-      : null
+
+    const block = (m[5] || '') + ' ' + (m[7] || '')
+    const qMatch = block.match(/href=\"([^\"]*module=QUANTITY[^\"]*)\"/i)
+    const q = qMatch ? qMatch[1].replace(/&amp;/g, '&') : null
+
+    const url = q ? (q.startsWith('http') ? q : `${baseUrl}${q.startsWith('?') ? q : '/' + q}`) : null
     if (date) out.push({ date, heure: `${time}:00`, url })
   }
 

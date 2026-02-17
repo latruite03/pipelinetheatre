@@ -18,8 +18,17 @@ function normUrl(u) {
   try {
     const url = new URL(String(u))
     url.hash = ''
+
+    // Special-case Utick: their URLs often vary by module (QUANTITY vs ACTIVITYSERIEDETAILS)
+    // while pointing to the same performance slot. We strip query params entirely to keep
+    // fingerprints stable across these variants.
+    if (/\butick\.(net|be)$/i.test(url.hostname)) {
+      url.search = ''
+      return url.toString()
+    }
+
     // Remove tracking noise where possible
-    for (const k of ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','fbclid','gclid']) {
+    for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'fbclid', 'gclid']) {
       url.searchParams.delete(k)
     }
     return url.toString()
