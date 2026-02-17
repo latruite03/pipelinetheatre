@@ -1,6 +1,18 @@
 import fetch from 'node-fetch'
 import { computeFingerprint, stripDiacritics } from '../lib/normalize.mjs'
 
+async function fetchShowImage(url) {
+  try {
+    const html = await (await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 (OpenClaw pipelinetheatre)' } })).text()
+    // Example:
+    // <div class="slider-media-picture-bkg" style="background: url('https://www.le140.be/wp-content/uploads/...jpg'); ...">
+    const m = html.match(/slider-media-picture-bkg[\s\S]*?background:\s*url\('([^']+)'\)/i)
+    return m?.[1] || null
+  } catch {
+    return null
+  }
+}
+
 const SOURCE = 'le140'
 const BASE = 'https://www.le140.be'
 
@@ -84,14 +96,17 @@ async function fetchShowDetails(url) {
     const ogDesc = html.match(/property="og:description" content="([^"]+)"/i)?.[1] || null
     const description = ogDesc ? stripTags(decodeHtml(ogDesc)) : null
 
-    // Pick first show-like image from <img src="..."> excluding obvious site assets.
+    // Prefer banner-slider background image when present.
+    const slider = html.match(/slider-media-picture-bkg[\s\S]*?background:\s*url\('([^']+)'\)/i)?.[1] || null
+
+    // Fallback: first show-like image from <img src="..."> excluding obvious site assets.
     const imgCandidates = [...html.matchAll(/<img[^>]+src="([^"]+)"/gi)]
       .map((m) => m[1])
       .filter(Boolean)
       .filter((u) => /\/wp-content\/uploads\//i.test(u))
       .filter((u) => !/Le140-(?:ico|mobile)\.png/i.test(u))
 
-    const image_url = imgCandidates[0] || null
+    const image_url = slider || imgCandidates[0] || null
 
     return { description, image_url }
   } catch {
