@@ -44,6 +44,7 @@ import { loadJoliBois } from './connectors/jolibois.mjs'
 import { loadClarenciere } from './connectors/clarenciere.mjs'
 import { loadTourAPlomb } from './connectors/touraplomb.mjs'
 import { loadMaisonDeLaCreation } from './connectors/maisondelacreation.mjs'
+import { loadMaisonDeLaCreationGare } from './connectors/maisondelacreation_gare.mjs'
 import { loadVauxHallSummer } from './connectors/vauxhallsummer.mjs'
 import { loadLe140 } from './connectors/le140.mjs'
 import { loadJacquesFranck } from './connectors/jacquesfranck.mjs'
@@ -109,6 +110,7 @@ Usage:
   node src/run.mjs clarenciere
   node src/run.mjs touraplomb
   node src/run.mjs maisondelacreation
+  node src/run.mjs maisondelacreation_gare
   node src/run.mjs vauxhallsummer
   node src/run.mjs le140
   node src/run.mjs jacquesfranck
@@ -511,6 +513,15 @@ async function main() {
   if (mode === 'maisondelacreation') {
     const reps = await loadMaisonDeLaCreation()
     console.log(`Loaded ${reps.length} rows from Maison de la création (MC NOH) (stub, site unreachable)`) 
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'maisondelacreation_gare') {
+    const reps = await loadMaisonDeLaCreationGare()
+    console.log(`Loaded ${reps.length} rows from Maison de la création – MC Gare (stub, site unreachable)`) 
 
     const res = await upsertRepresentations(reps)
     console.log(res)
