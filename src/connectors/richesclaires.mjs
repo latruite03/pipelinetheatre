@@ -19,10 +19,14 @@ const DENY_CAT = [
 function decodeHtmlEntities(s) {
   return (s || '')
     .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
+    .replace(/&#0*39;|&#039;/g, "'")
+    .replace(/&rsquo;|&lsquo;/g, "'")
+    .replace(/&ldquo;|&rdquo;/g, '"')
+    .replace(/&hellip;/g, '…')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
 }
 
 function stripTags(s) {
