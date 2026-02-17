@@ -12,9 +12,54 @@ export async function upsertRepresentations(reps) {
     .filter((r) => r && r.is_theatre !== false)
     .filter((r) => !r?.date || r.date >= MIN_DATE)
 
+  function normUrl(u) {
+    if (!u) return ''
+    try {
+      const url = new URL(String(u))
+      url.hash = ''
+      for (const k of ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','fbclid','gclid']) {
+        url.searchParams.delete(k)
+      }
+      return url.toString()
+    } catch {
+      return String(u).split('#')[0]
+    }
+  }
+
+  function score(r) {
+    // Prefer richer rows when we must choose between duplicates
+    return (
+      (r?.image_url ? 100 : 0) +
+      Math.min(80, String(r?.description || '').length / 10) +
+      Math.min(20, String(r?.titre || '').length / 10)
+    )
+  }
+
+  // Functional de-dup (pre-fingerprint): same canonical URL + date + time + theatre.
+  // This prevents duplicates when a connector changes its title formatting between runs
+  // (e.g. KVS: "M.O.L." vs "M.O.L. (…)") but the event URL is identical.
+  const byEventKey = new Map()
+  for (const r of incoming) {
+    const key = [
+      normUrl(r?.url || r?.source_url),
+      r?.date || '',
+      r?.heure || '',
+      String(r?.theatre_nom || '').trim().toLowerCase(),
+    ].join('|')
+
+    if (!byEventKey.has(key)) {
+      byEventKey.set(key, r)
+      continue
+    }
+
+    const cur = byEventKey.get(key)
+    if (score(r) > score(cur)) byEventKey.set(key, r)
+  }
+  const deduped = Array.from(byEventKey.values())
+
   // De-dup by fingerprint to avoid ON CONFLICT affecting the same row twice
   const seen = new Map()
-  for (const r of incoming) {
+  for (const r of deduped) {
     if (!r?.fingerprint) continue
     if (!seen.has(r.fingerprint)) seen.set(r.fingerprint, r)
   }
