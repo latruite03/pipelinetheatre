@@ -251,8 +251,9 @@ async function main() {
   }
 
   if (mode === 'entrela') {
-    const reps = await loadEntrela()
-    console.log(`Loaded ${reps.length} rows from L’Entrela’ (stub)`) 
+    let reps = await loadEntrela({ minDate: MIN_DATE, maxDate: '2026-06-30' })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from L’Entrela’ (theatre category only, >=${MIN_DATE})`) 
 
     const res = await upsertRepresentations(reps)
     console.log(res)
