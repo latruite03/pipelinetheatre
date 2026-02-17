@@ -66,7 +66,7 @@ function parseShowUrlsFromHome(html) {
   return Array.from(new Set(urls))
 }
 
-function parseBestImage(html) {
+function parseBestImage(html, { slug = null, titre = null } = {}) {
   // TRG sometimes sets og:image to a banner (gif) or to an URL that serves a placeholder.
   // Prefer show-specific JPG/PNG/WEBP images found in-page.
 
@@ -84,10 +84,52 @@ function parseBestImage(html) {
     }
   }
 
+  const isImage = (u) => /\.(jpe?g|png|webp)(\?|$)/i.test(u)
+  const isBannerish = (u) => /Banner/i.test(u) || /favicon/i.test(u) || /\blogo\b/i.test(u) || /_logo_/i.test(u)
+
+  const slugTokens = (slug || '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t && t.length >= 3)
+
+  const titleTokens = stripDiacritics((titre || '').toLowerCase())
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t && t.length >= 4)
+
+  const scoreUrl = (u) => {
+    const d = stripDiacritics(decoded(u).toLowerCase())
+    let score = 0
+
+    for (const t of slugTokens) if (d.includes(t)) score += 3
+    for (const t of titleTokens) if (d.includes(t)) score += 1
+
+    if (isBannerish(u)) score -= 5
+    return score
+  }
+
+  const candidates = imgs.filter((u) => isImage(u))
+
+  // 1) best-scoring candidate (slug/title aware)
+  if (candidates.length) {
+    let best = null
+    let bestScore = -1e9
+    for (const u of candidates) {
+      const s = scoreUrl(u)
+      if (s > bestScore) {
+        best = u
+        bestScore = s
+      }
+    }
+    // Trust the scored pick if it matches at least one meaningful token (title/slug)
+    if (best && bestScore >= 1) return best
+  }
+
+  // 2) previous heuristics (but avoid picking site logos/banners)
   const best =
-    imgs.find((u) => /secret\.s/i.test(decoded(u)) && /\.(jpe?g|png|webp)(\?|$)/i.test(u)) ||
-    imgs.find((u) => /\.(jpe?g|png|webp)(\?|$)/i.test(u) && !/Banner/i.test(u)) ||
-    imgs.find((u) => /\.(jpe?g|png|webp)(\?|$)/i.test(u)) ||
+    imgs.find((u) => /secret\.s/i.test(decoded(u)) && isImage(u) && !isBannerish(u)) ||
+    imgs.find((u) => /carre[_\-]?trg/i.test(decoded(u)) && isImage(u) && !isBannerish(u)) ||
+    imgs.find((u) => isImage(u) && !isBannerish(u)) ||
+    imgs.find((u) => isImage(u)) ||
     null
 
   if (best) return best
@@ -226,7 +268,8 @@ export async function loadTRG() {
     const html = await (await fetch(showUrl, FETCH_OPTS)).text()
 
     const titre = parseTitle(html) || 'Spectacle'
-    const image_url = parseBestImage(html)
+    const slug = showUrl.split('/').filter(Boolean).slice(-1)[0] || null
+    const image_url = parseBestImage(html, { slug, titre })
     const description = parseDescription(html)
     const ticket_url = parseTicketUrl(html)
     const dts = parseCalendar(html)
