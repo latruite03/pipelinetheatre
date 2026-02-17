@@ -175,12 +175,30 @@ function parseDescription(eventHtml) {
   return cleaned.slice(0, 600)
 }
 
+function parseVenueLine(eventHtml) {
+  // The archive shows: "Archipel 19, Place de l'Église..." or other places.
+  // Try to capture a venue label from common TEC markup.
+  const m = /tribe-venue[^>]*>([\s\S]*?)<\/[^>]+>/i.exec(eventHtml)
+  if (m) return stripTags(m[1])
+
+  // Fallback: find the first occurrence of " - <Commune>" in the meta line.
+  const line = stripTags(eventHtml)
+  const idx = line.indexOf(' - ')
+  if (idx > 0) return line.slice(0, idx).trim()
+  return null
+}
+
+function venueToTheatreNom(venueText) {
+  const v = stripDiacritics(String(venueText || '')).toLowerCase()
+  if (v.includes('maison stepman') || v.includes('stepman')) return 'Archipel 19 – Maison Stepman'
+  return 'Archipel 19 – Le Fourquet'
+}
+
 export async function loadArchipel19() {
   const listHtml = await (await fetch(LIST_URL, FETCH_OPTS)).text()
   const eventUrls = parseEventUrls(listHtml)
 
-  const theatre_nom = 'Archipel 19 – Le Fourquet'
-  const theatre_adresse = "Place de l'Église 15, 1082 Berchem-Sainte-Agathe"
+  const theatre_adresse_default = "Place de l'Église 15, 1082 Berchem-Sainte-Agathe"
 
   const reps = []
 
@@ -189,6 +207,12 @@ export async function loadArchipel19() {
     const titre = parseTitle(eventHtml) || 'Spectacle'
     const description = parseDescription(eventHtml)
     const dts = parseDateTimes(eventHtml)
+
+    const venueLine = parseVenueLine(eventHtml)
+    const theatre_nom = venueToTheatreNom(venueLine)
+
+    // TODO: if we find a reliable per-venue address, set it here.
+    const theatre_adresse = theatre_adresse_default
 
     for (const dt of dts) {
       if (!dt.date || !inRange(dt.date)) continue
@@ -205,6 +229,7 @@ export async function loadArchipel19() {
         genre: null,
         style: null,
         ...(description ? { description } : {}),
+        is_theatre: true,
       }
       rep.fingerprint = computeFingerprint(rep)
       reps.push(rep)
