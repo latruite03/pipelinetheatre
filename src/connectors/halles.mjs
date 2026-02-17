@@ -109,7 +109,7 @@ export async function loadHallesDeSchaerbeek({ year = 2026, startMonth = 1, endM
     entries.push(...parseAgendaMonth(html, year, month))
   }
 
-  const eventCache = new Map()
+  const eventCache = new Map() // url -> { html, details }
   const reps = []
 
   for (const entry of entries) {
@@ -117,13 +117,19 @@ export async function loadHallesDeSchaerbeek({ year = 2026, startMonth = 1, endM
 
     if (!eventCache.has(entry.url)) {
       const eventHtml = await (await fetch(entry.url, FETCH_OPTS)).text()
-      eventCache.set(entry.url, parseEventDetails(eventHtml))
+      eventCache.set(entry.url, { html: eventHtml, details: parseEventDetails(eventHtml) })
     }
-    const details = eventCache.get(entry.url)
+    const cached = eventCache.get(entry.url)
+    const eventHtml = cached?.html || ''
+    const details = cached?.details || null
 
     const titre = details?.title || entry.title
     const theatre_nom = details?.venue || 'Les Halles de Schaerbeek'
     const url = details?.ticketUrl || entry.url
+
+    // If the event page says it has moved to another venue (ex: "DÉPLACÉ ... AU 140"),
+    // we hide it from Halles to avoid wrong venue attribution (it will be covered by the destination venue connector).
+    const movedAway = /\b(d[eé]plac[eé]|d[eé]plac[eé]e)\b[\s\S]{0,120}?\bAU\s+140\b/i.test(eventHtml)
 
     const rep = {
       source: SOURCE,
@@ -137,6 +143,10 @@ export async function loadHallesDeSchaerbeek({ year = 2026, startMonth = 1, endM
       genre: null,
       style: null,
       is_complet: !!entry.is_complet,
+      is_theatre: !movedAway,
+      ...(movedAway
+        ? { hidden_reason: 'auto: moved to another venue (mentions "AU 140")', hidden_at: new Date().toISOString() }
+        : {}),
     }
     rep.fingerprint = computeFingerprint(rep)
     reps.push(rep)
