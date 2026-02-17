@@ -86,7 +86,9 @@ function parseEventDetails(html) {
   const venue = stripTags(/class="location[^"]*"[^>]*>([\s\S]*?)<\/div>/i.exec(html)?.[1] || '') || null
 
   const ticketMatch = html.match(/https?:\/\/[^"'\s>]*ticketmatic[^"'\s>]*/i)
-  const ticketUrl = ticketMatch ? ticketMatch[0] : null
+  let ticketUrl = ticketMatch ? ticketMatch[0] : null
+  // The "subscribe" widget is not a useful reservation link for our users.
+  if (ticketUrl && /\/flow\/subscribe/i.test(ticketUrl)) ticketUrl = null
 
   const ogImage = /<meta\s+property="og:image"\s+content="([^"]+)"/i.exec(html)?.[1] || null
   const image_url = ogImage ? stripTags(ogImage) : null
@@ -95,7 +97,13 @@ function parseEventDetails(html) {
   const desc = /<meta\s+name="description"\s+content="([^"]+)"/i.exec(html)?.[1] || null
   const description = stripTags(desc || ogDesc || '') || null
 
-  return { title, venue, ticketUrl, image_url, description }
+  // Crude classification for this mixed venue: we only keep theatre/performance-like items.
+  const text = stripTags(html)
+  const deny = /\b(film|screening|podcast|listening session|conference|talk|workshop|expo|exhibition)\b/i.test(text)
+  const allow = /\b(theatre|theater|performance|danse|dance|spectacle)\b/i.test(text)
+  const is_theatre = allow && !deny
+
+  return { title, venue, ticketUrl, image_url, description, is_theatre }
 }
 
 export async function loadBeursschouwburg({ maxPages = 20 } = {}) {
@@ -127,6 +135,7 @@ export async function loadBeursschouwburg({ maxPages = 20 } = {}) {
     const url = details?.ticketUrl || entry.url
     const image_url = details?.image_url || null
     const description = details?.description || null
+    const is_theatre = details?.is_theatre !== false
 
     const times = entry.times.length ? entry.times : [null]
     for (const heure of times) {
@@ -144,7 +153,7 @@ export async function loadBeursschouwburg({ maxPages = 20 } = {}) {
         is_complet: !!entry.is_complet,
         ...(image_url ? { image_url } : {}),
         ...(description ? { description: description.slice(0, 600) } : {}),
-        is_theatre: true,
+        is_theatre,
       }
       rep.fingerprint = computeFingerprint(rep)
       reps.push(rep)
