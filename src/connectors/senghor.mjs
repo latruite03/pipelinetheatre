@@ -1,3 +1,4 @@
+import fetch from 'node-fetch'
 import { computeFingerprint, stripDiacritics } from '../lib/normalize.mjs'
 
 const SOURCE = 'https://www.senghor.be'
@@ -62,25 +63,26 @@ export async function loadSenghor({
 
       if (!titre || !url) continue
 
-      const disc = (h.disciplines || []).map((x) => x?.name).filter(Boolean).join(' | ')
-      const types = (h.types || []).map((x) => x?.name).filter(Boolean).join(' | ')
+      const disc = (h.discipline || []).map((x) => x?.name).filter(Boolean).join(' | ')
+      const types = (h.type_activite || []).map((x) => x?.name).filter(Boolean).join(' | ')
       const discNorm = norm(disc)
       const typesNorm = norm(types)
 
-      // Plays-only: keep items tagged Théâtre + Représentation
+      // Content policy: keep theatre events; drop workshops/stages.
       if (!(discNorm.includes('theatre') || discNorm.includes('théâtre'))) continue
-      if (!(typesNorm.includes('representation') || typesNorm.includes('représentation'))) continue
+      if (typesNorm.includes('atelier') || typesNorm.includes('stage')) continue
 
       const dates = Array.isArray(h.dates) ? h.dates : []
       for (const d of dates) {
-        const date = d?.date?.ISO
+        const day = d?.day || d
+        const date = day?.ISO
         if (!date || date < minDate || date > maxDate) continue
 
-        const heure = d?.start_hour || null
+        const heure = day?.start_hour ? `${day.start_hour}:00`.replace(/:00:00$/, ':00') : (h?.start_hour ? `${h.start_hour}:00`.replace(/:00:00$/, ':00') : null)
 
-        const loc = d?.location || h?.location || null
-        const theatre_adresse = loc
-          ? [loc.address, loc.zipcode, (loc.city || '').trim()].filter(Boolean).join(', ').replace(/\s+/g, ' ').trim() || THEATRE_ADRESSE_DEFAULT
+        const place = day?.place || h?.place || null
+        const theatre_adresse = place
+          ? [place.adress || place.address, place.zip, (place.city || '').trim()].filter(Boolean).join(', ').replace(/\s+/g, ' ').trim() || THEATRE_ADRESSE_DEFAULT
           : THEATRE_ADRESSE_DEFAULT
 
         const rep = {
