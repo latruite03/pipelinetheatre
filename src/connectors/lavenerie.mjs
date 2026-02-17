@@ -17,6 +17,7 @@ function norm(s) {
 function pick(obj) {
   if (!obj) return null
   if (typeof obj === 'string') return obj
+  if (typeof obj.url === 'string') return obj.url
   if (typeof obj.raw === 'string') return obj.raw
   if (typeof obj.rich === 'string') return obj.rich
   return null
@@ -106,15 +107,12 @@ export async function loadLavenerie({
         }
 
         // Plays-only policy:
-        // Prefer La Vénerie taxonomy (disciplines/types) over free-text heuristics.
-        // Keep only items tagged "Théâtre" and a representation-like type.
+        // Keep only items tagged "Théâtre" in disciplines.
+        // (Meili index sometimes lacks a reliable "types" field.)
         const disc = (h.disciplines || []).map((x) => x?.name).filter(Boolean).join(' | ')
-        const types = (h.types || []).map((x) => x?.name).filter(Boolean).join(' | ')
         const discNorm = norm(disc)
-        const typesNorm = norm(types)
         const isTheatreTagged = discNorm.includes('theatre') || discNorm.includes('théâtre')
-        const isRepresentation = typesNorm.includes('representation') || typesNorm.includes('représentation')
-        if (!isTheatreTagged || !isRepresentation) continue
+        if (!isTheatreTagged) continue
 
         // Secondary safety net (exclude obvious non-play keywords)
         const { ok } = shouldEmitTheatre(rep, { strict: false })

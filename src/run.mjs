@@ -490,8 +490,9 @@ async function main() {
   }
 
   if (mode === 'uccle') {
-    const reps = await loadCCUccle()
-    console.log(`Loaded ${reps.length} rows from Centre Culturel d’Uccle (stub)`) 
+    let reps = await loadCCUccle({ minDate: MIN_DATE, maxDate: '2026-06-30' })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from Centre Culturel d’Uccle (programme page, theatre/stand-up only, >=${MIN_DATE})`) 
 
     const res = await upsertRepresentations(reps)
     console.log(res)
