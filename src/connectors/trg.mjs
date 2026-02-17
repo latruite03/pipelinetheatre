@@ -67,15 +67,30 @@ function parseShowUrlsFromHome(html) {
 }
 
 function parseBestImage(html) {
-  // Prefer a non-animated poster (webp/jpg/png) when available.
-  // TRG pages often have og:image as a GIF banner; we prefer fixed banner/poster images.
-  const imgRe = /\/web\/image\/[^\s"']+\.(webp|png|jpe?g)/gi
-  const matches = []
-  let m
-  while ((m = imgRe.exec(html))) {
-    matches.push(`${BASE}${m[0]}`)
+  // TRG sometimes sets og:image to a banner (gif) or to an URL that serves a placeholder.
+  // Prefer show-specific JPG/PNG/WEBP images found in-page.
+
+  const imgs = [...html.matchAll(/<img[^>]+src="([^"]+)"/gi)]
+    .map((m) => m[1])
+    .filter(Boolean)
+    .map((u) => (u.startsWith('http') ? u : `${BASE}${u}`))
+    .filter((u) => u.includes('/web/image/') && !u.includes('/web/image/website/'))
+
+  const decoded = (u) => {
+    try {
+      return decodeURIComponent(u)
+    } catch {
+      return u
+    }
   }
-  if (matches.length > 0) return matches[0]
+
+  const best =
+    imgs.find((u) => /secret\.s/i.test(decoded(u)) && /\.(jpe?g|png|webp)(\?|$)/i.test(u)) ||
+    imgs.find((u) => /\.(jpe?g|png|webp)(\?|$)/i.test(u) && !/Banner/i.test(u)) ||
+    imgs.find((u) => /\.(jpe?g|png|webp)(\?|$)/i.test(u)) ||
+    null
+
+  if (best) return best
 
   // fallback to og:image (may be gif)
   const og = /<meta property="og:image" content="([^"]+)"/i.exec(html)
