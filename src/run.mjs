@@ -41,6 +41,7 @@ import { loadKriekelaar } from './connectors/kriekelaar.mjs'
 import { loadOsAMoelle } from './connectors/osamoelle.mjs'
 import { loadCoteVillage } from './connectors/cotevillage.mjs'
 import { loadJoliBois } from './connectors/jolibois.mjs'
+import { loadClarenciere } from './connectors/clarenciere.mjs'
 import { loadLe140 } from './connectors/le140.mjs'
 import { loadJacquesFranck } from './connectors/jacquesfranck.mjs'
 import { loadMaisonPoeme } from './connectors/maisonpoeme.mjs'
@@ -102,6 +103,7 @@ Usage:
   node src/run.mjs osamoelle
   node src/run.mjs cotevillage
   node src/run.mjs jolibois
+  node src/run.mjs clarenciere
   node src/run.mjs le140
   node src/run.mjs jacquesfranck
   node src/run.mjs maisonpoeme
@@ -476,6 +478,15 @@ async function main() {
   if (mode === 'jolibois') {
     const reps = await loadJoliBois({ minDate: MIN_DATE, maxDate: '2026-06-30' })
     console.log(`Loaded ${reps.length} rows from Centre communautaire de Joli-Bois (stand-up only)`) 
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'clarenciere') {
+    const reps = await loadClarenciere()
+    console.log(`Loaded ${reps.length} rows from La Clarencière (stub)`) 
 
     const res = await upsertRepresentations(reps)
     console.log(res)
