@@ -114,7 +114,28 @@ function isDeniedTitle(titre) {
   return /atelier|stage|conf[eé]rence|rencontre|djemb[eé]|kora/i.test(t)
 }
 
-function parseAgendaText(html) {
+function toAbsUrl(src, baseUrl) {
+  if (!src) return null
+  try {
+    return new URL(src, baseUrl).toString()
+  } catch {
+    return null
+  }
+}
+
+function pickPosterFromBlock(blockHtml, pageUrl) {
+  // Prefer affiche images (AFFICHES/...) and ignore obvious UI assets.
+  const candidates = [...String(blockHtml || '').matchAll(/<img[^>]+src="([^"]+)"/gi)]
+    .map((m) => m[1])
+    .filter(Boolean)
+    .filter((u) => !/presse\.gif/i.test(u))
+    .filter((u) => !/logo/i.test(u))
+
+  const preferred = candidates.find((u) => /AFFICHES\//i.test(u)) || candidates[0]
+  return preferred ? toAbsUrl(preferred, pageUrl) : null
+}
+
+function parseAgendaText(html, pageUrl) {
   const blocks = String(html).split(/<div[^>]+class="TitreSpectacle"/i)
   const events = []
 
@@ -122,6 +143,8 @@ function parseAgendaText(html) {
     const blockHtml = '<div class="TitreSpectacle"' + blocks[i]
     const titre = parseShowTitleFromBlock(blockHtml)
     if (!titre || isDeniedTitle(titre)) continue
+
+    const image_url = pickPosterFromBlock(blockHtml, pageUrl)
 
     const cleaned = stripTags(blockHtml)
 
@@ -133,7 +156,7 @@ function parseAgendaText(html) {
       const dates = expandDates(dateLine)
       const heure = parseTime(dateLine)
       for (const date of dates) {
-        events.push({ titre, date, heure })
+        events.push({ titre, date, heure, image_url })
       }
     }
   }
@@ -173,7 +196,7 @@ export async function loadClarenciere({
     html3 = ''
   }
 
-  const items = [...parseAgendaText(html2), ...parseAgendaText(html3)]
+  const items = [...parseAgendaText(html2, mainUrl), ...parseAgendaText(html3, tri3Url)]
 
   const reps = []
   for (const it of items) {
@@ -191,7 +214,7 @@ export async function loadClarenciere({
       genre: null,
       style: null,
       description: null,
-      image_url: null,
+      image_url: it.image_url || null,
       is_theatre: true,
     }
 
