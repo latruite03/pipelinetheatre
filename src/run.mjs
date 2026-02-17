@@ -55,6 +55,7 @@ import { loadJacquesFranck } from './connectors/jacquesfranck.mjs'
 import { loadMaisonPoeme } from './connectors/maisonpoeme.mjs'
 import { loadKoeks } from './connectors/koeks.mjs'
 import { loadImproviste } from './connectors/improviste.mjs'
+import { loadLaVilla } from './connectors/lavilla.mjs'
 import { loadBeursschouwburg } from './connectors/beursschouwburg.mjs'
 import { loadHallesDeSchaerbeek } from './connectors/halles.mjs'
 import { loadVolter } from './connectors/volter.mjs'
@@ -62,6 +63,7 @@ import { loadTheatreDeLaVie } from './connectors/theatredelavie.mjs'
 import { loadLavenerie } from './connectors/lavenerie.mjs'
 import { loadSenghor } from './connectors/senghor.mjs'
 import { loadJardinDeMaSoeur } from './connectors/jardindemasoer.mjs'
+import { loadBoson } from './connectors/boson.mjs'
 import { enrichTheatreDuParc } from './enrich/theatreduparc.mjs'
 import { enrichGenreStyle } from './enrich/genreStyle.mjs'
 import { upsertRepresentations } from './publish/upsertRepresentations.mjs'
@@ -126,6 +128,8 @@ Usage:
   node src/run.mjs koeks
   node src/run.mjs poche
   node src/run.mjs improviste
+  node src/run.mjs lavilla
+  node src/run.mjs boson
   node src/run.mjs beursschouwburg
   node src/run.mjs halles
   node src/run.mjs volter
@@ -644,6 +648,16 @@ async function main() {
     return
   }
 
+  if (mode === 'lavilla') {
+    let reps = await loadLaVilla({ minDate: MIN_DATE, maxDate: '2026-06-30' })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from La Villa (WP API + content date parsing, theatre/stand-up filter, >=${MIN_DATE})`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
   if (mode === 'beursschouwburg') {
     const reps = await loadBeursschouwburg()
     console.log(`Loaded ${reps.length} rows from Beursschouwburg (2026-01-01 to 2026-06-30)`)
@@ -705,6 +719,16 @@ async function main() {
     let reps = await loadJardinDeMaSoeur({ minDate: MIN_DATE, maxDate: '2026-06-30' })
     reps = keepUpcoming(reps)
     console.log(`Loaded ${reps.length} upcoming rows from Le Jardin de ma Sœur (Squarespace event list, plays-only, >=${MIN_DATE})`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'boson') {
+    let reps = await loadBoson({ minDate: MIN_DATE, maxDate: '2026-06-30' })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from Le Boson (plays pages crawl, >=${MIN_DATE})`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)
