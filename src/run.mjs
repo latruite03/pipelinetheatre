@@ -241,8 +241,9 @@ async function main() {
   }
 
   if (mode === 'escaledunord') {
-    const reps = await loadEscaleDuNord()
-    console.log(`Loaded ${reps.length} rows from Escale du Nord (stub)`) 
+    let reps = await loadEscaleDuNord({ minDate: MIN_DATE, maxDate: '2026-06-30' })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from Escale du Nord (filtered theatre/stand-up, >=${MIN_DATE})`) 
 
     const res = await upsertRepresentations(reps)
     console.log(res)
