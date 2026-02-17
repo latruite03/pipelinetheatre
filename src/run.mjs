@@ -44,6 +44,7 @@ import { loadJoliBois } from './connectors/jolibois.mjs'
 import { loadClarenciere } from './connectors/clarenciere.mjs'
 import { loadTourAPlomb } from './connectors/touraplomb.mjs'
 import { loadMaisonDeLaCreation } from './connectors/maisondelacreation.mjs'
+import { loadVauxHallSummer } from './connectors/vauxhallsummer.mjs'
 import { loadLe140 } from './connectors/le140.mjs'
 import { loadJacquesFranck } from './connectors/jacquesfranck.mjs'
 import { loadMaisonPoeme } from './connectors/maisonpoeme.mjs'
@@ -108,6 +109,7 @@ Usage:
   node src/run.mjs clarenciere
   node src/run.mjs touraplomb
   node src/run.mjs maisondelacreation
+  node src/run.mjs vauxhallsummer
   node src/run.mjs le140
   node src/run.mjs jacquesfranck
   node src/run.mjs maisonpoeme
@@ -509,6 +511,16 @@ async function main() {
   if (mode === 'maisondelacreation') {
     const reps = await loadMaisonDeLaCreation()
     console.log(`Loaded ${reps.length} rows from Maison de la création (MC NOH) (stub, site unreachable)`) 
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'vauxhallsummer') {
+    let reps = await loadVauxHallSummer({ minDate: MIN_DATE, maxDate: '2026-06-30' })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from Vaux Hall Summer (STRICT filter)`) 
 
     const res = await upsertRepresentations(reps)
     console.log(res)
