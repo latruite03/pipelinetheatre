@@ -179,7 +179,7 @@ export async function loadNovum({ limitEvents = 50 } = {}) {
   
   const events = parseEventCards(html).slice(0, limitEvents)
   
-  const theatre_nom = 'Théâtre Saint-Michel (NOVUM)'
+  const theatre_nom = 'Théâtre Saint-Michel'
   const theatre_adresse = '2, Rue Père Eudore Devroye, 1040 Bruxelles'
   
   const reps = []

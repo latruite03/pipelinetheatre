@@ -11,6 +11,9 @@ import { loadRichesClaires } from './connectors/richesclaires.mjs'
 import { loadMercelisIxelles } from './connectors/mercelis_ixelles.mjs'
 import { loadCreaNova } from './connectors/creanova.mjs'
 import { loadAuditoriumJacquesBrel } from './connectors/auditoriumjbrel.mjs'
+import { loadMCCS } from './connectors/mccs.mjs'
+import { loadCCJette } from './connectors/ccjette.mjs'
+import { loadCCSchaerbeek } from './connectors/ccschaerbeek.mjs'
 import { loadBizou } from './connectors/bizou.mjs'
 import { loadEscaleDuNord } from './connectors/escaledunord.mjs'
 import { loadEntrela } from './connectors/entrela.mjs'
@@ -83,6 +86,9 @@ Usage:
   node src/run.mjs mercelis
   node src/run.mjs creanova
   node src/run.mjs auditoriumjbrel
+  node src/run.mjs mccs
+  node src/run.mjs ccjette
+  node src/run.mjs ccschaerbeek
   node src/run.mjs bizou
   node src/run.mjs escaledunord
   node src/run.mjs entrela
@@ -228,6 +234,35 @@ async function main() {
   if (mode === 'auditoriumjbrel') {
     const reps = await loadAuditoriumJacquesBrel()
     console.log(`Loaded ${reps.length} rows from Auditorium Jacques Brel (theatre only)`)
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'mccs') {
+    let reps = await loadMCCS({ minDate: '2026-01-01', maxDate: '2026-06-30' })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from Maison des Cultures et de la Cohésion Sociale (theatre-like only)`) 
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'ccjette') {
+    let reps = await loadCCJette({ minDate: '2026-01-01', maxDate: '2026-06-30' })
+    reps = keepUpcoming(reps)
+    console.log(`Loaded ${reps.length} upcoming rows from Centre culturel de Jette (L'Armillaire) (theatre-like only)`) 
+
+    const res = await upsertRepresentations(reps)
+    console.log(res)
+    return
+  }
+
+  if (mode === 'ccschaerbeek') {
+    const reps = await loadCCSchaerbeek()
+    console.log(`Loaded ${reps.length} rows from Centre Culturel de Schaerbeek (site indicates activities paused)`) 
 
     const res = await upsertRepresentations(reps)
     console.log(res)
