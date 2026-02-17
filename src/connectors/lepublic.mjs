@@ -102,7 +102,13 @@ function parseTitle(html) {
 }
 
 function parsePoster(html) {
-  return pickFirst(/<meta property="og:image" content="([^"]+)"/i, html)
+  return (
+    pickFirst(/<meta property="og:image" content="([^"]+)"/i, html) ||
+    pickFirst(/<meta name="twitter:image" content="([^"]+)"/i, html) ||
+    pickFirst(/<meta property="twitter:image" content="([^"]+)"/i, html) ||
+    pickFirst(/<meta itemprop="image" content="([^"]+)"/i, html) ||
+    pickFirst(/\b(https?:\/\/[^\s"']+\.(?:jpg|jpeg|png|webp))\b/i, html)
+  )
 }
 
 function parseDates(html) {
@@ -168,6 +174,10 @@ function parseDates(html) {
 }
 
 function extractDescription(html) {
+  // Prefer og:description when present (pages often lack clean <h1>/<og:image>).
+  const og = pickFirst(/<meta property="og:description" content="([^"]+)"/i, html)
+  if (og) return stripTags(decodeHtmlEntities(og))
+
   const afterBody = /<body[\s\S]*?<p[^>]*>([\s\S]{0,8000})/i.exec(html)?.[1] || ''
   
   const ps = []

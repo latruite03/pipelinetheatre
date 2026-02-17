@@ -420,7 +420,7 @@ async function main() {
   }
 
   if (mode === 'lepublic') {
-    const reps = await loadLePublic()
+    const reps = await loadLePublic({ limitShows: Number(process.env.LEPUBLIC_LIMIT_SHOWS || 25) })
     console.log(`Loaded ${reps.length} rows from Théâtre Le Public (2026-01-01 to 2026-06-30)`)
 
     const res = await upsertRepresentations(reps)
