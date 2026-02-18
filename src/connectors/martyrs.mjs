@@ -65,24 +65,55 @@ function parseTitle(html) {
 }
 
 function parseOgImage(html) {
-  const m = /<meta property="og:image" content="([^"]+)"/i.exec(html)
-  if (m) return toAbsUrl(m[1])
+  const og = /<meta property="og:image" content="([^"]+)"/i.exec(html)?.[1] || null
 
-  // Fallback: some show pages don't expose og:image; pick a reasonable poster/banner.
-  // Avoid logos/favicons/cropped assets.
+  // Candidate pool from the page
   const candidates = Array.from(
     html.matchAll(/https:\/\/theatre-martyrs\.be\/wp-content\/uploads\/[a-zA-Z0-9_\/-]+\.(?:jpg|jpeg|png|webp)/g)
   ).map((x) => x[0])
 
-  for (const u of candidates) {
-    const s = u.toLowerCase()
-    if (s.includes('cropped-')) continue
-    if (s.includes('favicon')) continue
-    if (s.includes('logo')) continue
-    return u
+  const uniq = Array.from(new Set([...(og ? [toAbsUrl(og)] : []), ...candidates].filter(Boolean)))
+
+  const dimsArea = (u) => {
+    const m = /-(\d{2,4})x(\d{2,4})\.(?:jpg|jpeg|png|webp)(?:\?|$)/i.exec(u)
+    if (!m) return 0
+    return Number(m[1]) * Number(m[2])
   }
 
-  return null
+  const score = (u) => {
+    const s = u.toLowerCase()
+    if (s.includes('cropped-')) return -1000
+    if (s.includes('favicon')) return -1000
+    if (s.includes('logo')) return -1000
+
+    let sc = 0
+
+    // Prefer real show visuals over banners when possible
+    if (s.includes('banner')) sc -= 50
+
+    // Prefer poster-ish keywords
+    if (s.includes('affiche') || s.includes('poster')) sc += 15
+
+    // Prefer photos/credits over generic assets
+    if (s.includes('credit') || s.includes('hd')) sc += 5
+
+    // Prefer larger renditions
+    sc += Math.min(30, Math.floor(dimsArea(u) / 50000))
+
+    return sc
+  }
+
+  let best = null
+  let bestScore = -1e9
+  for (const u of uniq) {
+    const sc = score(u)
+    if (sc > bestScore) {
+      best = u
+      bestScore = sc
+    }
+  }
+
+  return best || null
 }
 
 function parseDescription(html) {
