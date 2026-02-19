@@ -722,9 +722,10 @@ async function main() {
   }
 
   if (mode === 'theatredelavie') {
-    let reps = await loadTheatreDeLaVie()
+    const limitMonths = Number(process.env.THEATREDELAVIE_LIMIT_MONTHS || 12)
+    let reps = await loadTheatreDeLaVie({ limitMonths })
     reps = keepUpcoming(reps)
-    console.log(`Loaded ${reps.length} upcoming rows from Théâtre de la Vie (plays-only, >=${MIN_DATE})`)
+    console.log(`Loaded ${reps.length} upcoming rows from Théâtre de la Vie (plays-only, >=${MIN_DATE}, months=${limitMonths})`)
 
     const res = await upsertRepresentations(reps)
     console.log(res)

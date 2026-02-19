@@ -130,7 +130,21 @@ export async function loadTheatreDeLaVie({ limitMonths = 6 } = {}) {
   // day-of-month + time + category + link.
   // URLs: /?page=mois&mois=YYYY-MM-01
 
-  const months = ['2026-01-01','2026-02-01','2026-03-01','2026-04-01','2026-05-01','2026-06-01'].slice(0, limitMonths)
+  function firstOfMonthUTC(d) {
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1))
+  }
+
+  function toMonthISO(d) {
+    return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-01`
+  }
+
+  // Default: scan from current month forward (configurable via limitMonths)
+  const start = firstOfMonthUTC(new Date())
+  const months = []
+  for (let i = 0; i < limitMonths; i++) {
+    const d = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + i, 1))
+    months.push(toMonthISO(d))
+  }
 
   const excludedTitle = [
     'lundynamite',
