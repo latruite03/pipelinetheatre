@@ -205,6 +205,9 @@ export async function loadTheatreDeLaVie({ limitMonths = 6 } = {}) {
 
       // Detail page check to keep plays only
       const meta = await getShowMeta(href)
+
+      // Use the popover text as primary description: it's closer to the actual show synopsis
+      // and avoids pulling unrelated site chrome text that can confuse classification.
       const rep = {
         source: SOURCE,
         source_url: monthUrl,
@@ -217,12 +220,14 @@ export async function loadTheatreDeLaVie({ limitMonths = 6 } = {}) {
         genre: null,
         style: null,
         is_theatre: true,
-        ...(meta.description ? { description: meta.description } : {}),
+        description: inner,
         ...(meta.image_url ? { image_url: meta.image_url } : {}),
       }
 
       // Require explicit theatre signals in title/description (strict)
-      const { ok } = shouldEmitTheatre(rep, { strict: true })
+      // This venue often labels plays as “Création” without explicit theatre keywords.
+      // Keep strict=false here, while upstream exclusions already remove workshops/stages/open-mics.
+      const { ok } = shouldEmitTheatre(rep, { strict: false })
       if (!ok) continue
 
       rep.fingerprint = computeFingerprint(rep)

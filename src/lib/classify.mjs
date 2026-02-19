@@ -33,6 +33,8 @@ const POS = [
   'comedie', 'comédie',
   'drame', 'tragedie', 'tragédie',
   'seul en scene', 'seul en scène',
+  // common theatre-programming labels (often used without the word "théâtre")
+  'creation', 'création',
   // explicitly allowed
   'lecture-spectacle', 'lecture spectacle',
 ]
