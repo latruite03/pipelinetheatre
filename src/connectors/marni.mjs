@@ -73,6 +73,16 @@ function parseTitle(html) {
   return og ? decodeHtmlEntities(og).trim() : null
 }
 
+function hasTheatreTag(html) {
+  // Marni pages expose content tags as small "chips" (e.g. EVENTS / THÉÂTRE).
+  // We only want items explicitly tagged THÉÂTRE to avoid false positives (concerts, etc.).
+  const decoded = decodeHtmlEntities(html)
+
+  // Look for the tag label as visible element text (avoid matching in meta/JSON).
+  // Example patterns observed: >THÉÂTRE<
+  return />\s*TH[ÉE]ÂTRE\s*</i.test(decoded)
+}
+
 function parseImage(html) {
   return /<meta property="og:image" content="([^"]+)"/i.exec(html)?.[1] || null
 }
@@ -131,11 +141,15 @@ export async function loadMarni() {
   for (const url of limitedUrls) {
     const html = await (await fetch(url, FETCH_OPTS)).text()
 
+    // Hard policy: keep only items explicitly tagged "THÉÂTRE" on Marni's site.
+    // (They also list many non-theatre events.)
+    if (!hasTheatreTag(html)) continue
+
     const titre = parseTitle(html) || 'Spectacle'
     const image_url = parseImage(html)
     const description = parseDescription(html)
 
-    // Content policy: keep theatre; drop obvious music/concert/dance (especially festivals like Kidzik).
+    // Extra safety: drop obvious non-theatre items even if mis-tagged.
     const hay = `${titre} ${description || ''}`.toLowerCase()
     const NEG = [
       'kidz' /* kidzik/kidzik */, 'festival kidz',
