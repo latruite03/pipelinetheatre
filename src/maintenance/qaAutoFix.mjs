@@ -64,10 +64,12 @@ function safeLen(s) {
 function chooseBestRow(rows) {
   // Prefer non-suspect image, then longer description, then earlier created? (not available)
   const scored = rows.map((r) => {
+    const isComplet = r.is_complet === true
     const hasGoodImg = r.image_url && !isSuspectImageUrl(r.image_url)
     const descLen = safeLen(r.description)
     const urlScore = r.source_url ? 1 : 0
-    return { r, score: (hasGoodImg ? 10000 : 0) + descLen + urlScore }
+    // Highest priority: keep the row that correctly reflects "complet".
+    return { r, score: (isComplet ? 1000000 : 0) + (hasGoodImg ? 10000 : 0) + descLen + urlScore }
   })
   scored.sort((a, b) => b.score - a.score)
   return scored[0]?.r
@@ -151,7 +153,7 @@ async function main() {
 
   const { data, error } = await supabase
     .from('representations')
-    .select('id,source,source_url,url,date,heure,titre,theatre_nom,image_url,description,hidden_at,hidden_reason')
+    .select('id,source,source_url,url,date,heure,titre,theatre_nom,image_url,description,is_complet,hidden_at,hidden_reason')
     .gte('date', args.from)
     .lte('date', args.to)
     .limit(args.limit)
@@ -195,7 +197,7 @@ async function main() {
   // For remaining steps, work on still-visible rows (recompute if apply)
   const { data: data2, error: err2 } = await supabase
     .from('representations')
-    .select('id,source,source_url,url,date,heure,titre,theatre_nom,image_url,description,hidden_at,hidden_reason')
+    .select('id,source,source_url,url,date,heure,titre,theatre_nom,image_url,description,is_complet,hidden_at,hidden_reason')
     .gte('date', args.from)
     .lte('date', args.to)
     .limit(args.limit)
