@@ -73,6 +73,51 @@ function parseImage(html) {
   return m ? toAbsUrl(m[1]) : null
 }
 
+function parseCategories(html) {
+  // The page includes filter chips like:
+  // <li class="cat-formes-devenements-science-cocktails">Science & Cocktails</li>
+  const out = []
+  const re = /<li[^>]*class="[^"]*cat-formes-devenements-[^"]*"[^>]*>([\s\S]*?)<\/li>/gi
+  let m
+  while ((m = re.exec(html))) {
+    const label = stripTags(m[1])
+    if (label) out.push(label)
+  }
+  return Array.from(new Set(out))
+}
+
+function isTheatreEvent({ categories, title, description }) {
+  const cats = (categories || []).map((c) => String(c || '').toLowerCase())
+  const hay = `${title || ''} ${description || ''} ${(categories || []).join(' ')}`.toLowerCase()
+
+  // Hard deny: not theatre
+  const DENY_CATS = [
+    'concert',
+    'science & cocktails',
+    'science and cocktails',
+    'conférence',
+    'conference',
+    'rencontre',
+    'talk',
+    'discussion',
+    'atelier',
+    'workshop',
+    'projection',
+    'ciné',
+    'cinema',
+    'dj',
+  ]
+  if (DENY_CATS.some((c) => cats.includes(c) || hay.includes(c))) return false
+
+  // Require a positive theatre signal.
+  // Prefer explicit category “Théâtre”; fallback to keyword.
+  if (cats.some((c) => /th[ée]âtre/.test(c))) return true
+  if (/\bth[ée]âtre\b/i.test(hay)) return true
+
+  // Default: strict => not theatre
+  return false
+}
+
 function parseDescription(html) {
   // Often: <p class="text-intro"> ... </p>
   const intro = /<p class="text-intro">([\s\S]*?)<\/p>/i.exec(html)
@@ -181,6 +226,9 @@ export async function loadAtelier210() {
     const titre = parseTitle(html) || 'Spectacle'
     const image_url = parseImage(html)
     const description = parseDescription(html)
+    const categories = parseCategories(html)
+
+    const is_theatre = isTheatreEvent({ categories, title: titre, description })
 
     const dts = parseDateTimes(html)
     for (const dt of dts) {
@@ -197,6 +245,7 @@ export async function loadAtelier210() {
         url,
         genre: null,
         style: null,
+        is_theatre,
         ...(image_url ? { image_url } : {}),
         ...(description ? { description } : {}),
       }
