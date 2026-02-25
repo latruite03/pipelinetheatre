@@ -8,8 +8,20 @@ export async function upsertRepresentations(reps) {
   const MIN_DATE = process.env.MIN_DATE || new Date().toISOString().slice(0, 10)
 
   // Safety: never publish explicit non-theatre items
+  // + hard denylist for non-theatre venues (e.g. dance-only places)
+  const DENY_VENUE_RE = /(brigitt)/i
+
   const incoming = (reps || [])
-    .filter((r) => r && r.is_theatre !== false)
+    .filter((r) => r)
+    .map((r) => {
+      // If venue name matches denylist, force non-theatre.
+      // (Thom: we do not waste tokens/site space on Brigittines)
+      if (DENY_VENUE_RE.test(String(r?.theatre_nom || ''))) {
+        return { ...r, is_theatre: false }
+      }
+      return r
+    })
+    .filter((r) => r.is_theatre !== false)
     .filter((r) => !r?.date || r.date >= MIN_DATE)
 
   function normUrl(u) {
