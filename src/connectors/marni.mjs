@@ -14,12 +14,13 @@ const FETCH_OPTS = {
 
 function decodeHtmlEntities(s) {
   return (s || '')
-    .replace(/&quot;/g, '"')
+    .replace(/&#8217;/g, "'")
     .replace(/&#039;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ')
 }
 
 function stripTags(s) {
@@ -87,9 +88,28 @@ function parseImage(html) {
   return /<meta property="og:image" content="([^"]+)"/i.exec(html)?.[1] || null
 }
 
+function cleanDescription(desc) {
+  let d = stripTags(decodeHtmlEntities(desc || ''))
+  if (!d) return null
+
+  // Fix common Marni formatting: missing separator before synopsis
+  d = d.replace(/Tout public dès (\d+) ans(?=[A-ZÉÈÀÎÔÙÇ])/g, 'Tout public dès $1 ans. ')
+
+  // If og:description contains header lines (genre/credits/quote), start at first real synopsis sentence.
+  // Heuristic: keep from first occurrence of "Monsieur" / "Il" / "Elle" / "C'" etc.
+  const m = d.match(/\b(Monsieur\b[\s\S]*|Madame\b[\s\S]*|C['’]est\b[\s\S]*|Il\b[\s\S]*|Elle\b[\s\S]*)/)
+  if (m && m[1] && m[1].length > 80) d = m[1]
+
+  // normalize whitespace
+  d = d.replace(/\s+/g, ' ').trim()
+
+  return d
+}
+
 function parseDescription(html) {
   const og = /<meta property="og:description" content="([^"]+)"/i.exec(html)?.[1]
-  return og ? decodeHtmlEntities(og).trim() : null
+  const cleaned = og ? cleanDescription(og) : null
+  return cleaned ? cleaned.trim() : null
 }
 
 function parseDatesWithTimes(html) {
