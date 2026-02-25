@@ -9,7 +9,7 @@ export async function upsertRepresentations(reps) {
 
   // Safety: never publish explicit non-theatre items
   // + hard denylist for non-theatre venues (e.g. dance-only places)
-  const DENY_VENUE_RE = /(brigitt)/i
+  const DENY_VENUE_RE = /(brigitt|marni)/i
 
   const incoming = (reps || [])
     .filter((r) => r)
