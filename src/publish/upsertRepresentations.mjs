@@ -15,7 +15,17 @@ export async function upsertRepresentations(reps) {
   // it is very likely a scraping failure (e.g. sitemap/index pages mis-parsed as events).
   const MAX_ITEMS_PER_VENUE_DAY = Number(process.env.MAX_ITEMS_PER_VENUE_DAY || 12)
 
-  // Guardrail #2: if the description clearly mentions a different date range than rep.date,
+  // Guardrail #2: filter out non-theatre forms unless there's a clear theatre signal.
+  // Policy (Thom): humour/stand-up ok; cirque/danse/marionnette => reject unless clearly theatre.
+  const NON_THEATRE_FORMS_RE = /(\bcirque\b|\bdanse\b|chor[eé]graph|m[aâ]t chinois|marionnett|ballet)/i
+  const THEATRE_SIGNAL_RE = /(th[ée]âtre|pi[eè]ce|com[ée]die|drame|texte|mise en sc[eè]ne|seul en sc[eè]ne|monologue|humour|stand-?up|impro)/i
+
+  function looksLikeNonTheatreForm(rep) {
+    const hay = `${rep?.titre || ''} ${rep?.description || ''}`
+    return NON_THEATRE_FORMS_RE.test(hay) && !THEATRE_SIGNAL_RE.test(hay)
+  }
+
+  // Guardrail #3: if the description clearly mentions a different date range than rep.date,
   // treat it as a bad extraction and do not publish.
   function monthToNum(word) {
     const m = String(word || '')
@@ -79,6 +89,7 @@ export async function upsertRepresentations(reps) {
     .filter((r) => r)
     .map((r) => {
       if (DENY_VENUE_RE.test(String(r?.theatre_nom || ''))) return { ...r, is_theatre: false }
+      if (looksLikeNonTheatreForm(r)) return { ...r, is_theatre: false }
       if (looksLikeDateMismatch(r)) return { ...r, is_theatre: false }
       return r
     })
