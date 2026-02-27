@@ -598,8 +598,8 @@ async function main() {
   }
 
   if (mode === 'maisondelacreation') {
-    const reps = await loadMaisonDeLaCreation()
-    console.log(`Loaded ${reps.length} rows from Maison de la création (MC NOH) (stub, site unreachable)`) 
+    const reps = await loadMaisonDeLaCreation({ limitEvents: 60 })
+    console.log(`Loaded ${reps.length} rows from Maison de la création (theatre-only, from official site)`) 
 
     const res = await upsertRepresentations(reps)
     console.log(res)
