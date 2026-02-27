@@ -132,10 +132,17 @@ function parseTheatreName(html) {
   // On detail pages, the venue label appears near the title section as plain text.
   const m = />\s*(MC\s+(?:Gare|Bockstael|NOH|Cité\s+Modèle|Cite\s+Modele))\s*</i.exec(html)
   if (m) {
-    const v = stripTags(decodeEntities(m[1])).replace(/\s+/g, ' ').trim()
-    return v.replace('MC Cite Modele', 'MC Cité Modèle')
+    const v = stripTags(decodeEntities(m[1])).replace(/\s+/g, ' ').trim().replace('MC Cite Modele', 'MC Cité Modèle')
+
+    const map = {
+      'MC Gare': 'Maison de la Création - Gare',
+      'MC Bockstael': 'Maison de la Création - Bockstael',
+      'MC NOH': 'Maison de la Création - NOH',
+      'MC Cité Modèle': 'Maison de la Création - Cité Modèle',
+    }
+    return map[v] || `Maison de la Création - ${v.replace(/^MC\s+/, '')}`
   }
-  return 'Maison de la création'
+  return 'Maison de la Création'
 }
 
 function parseAddress(theatreNom) {
