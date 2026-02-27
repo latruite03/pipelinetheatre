@@ -4,6 +4,7 @@ import { computeFingerprint } from '../lib/normalize.mjs'
 const SOURCE = 'maisondelacreation'
 const BASE = 'https://www.maisondelacreation.org'
 const LIST_URL = `${BASE}/fr/evenements`
+const SITEMAP_URL = `${BASE}/sitemap.xml`
 
 const FETCH_OPTS = {
   headers: {
@@ -49,6 +50,14 @@ function parseListUrls(html) {
   // https://www.maisondelacreation.org/fr/programmation/evenements/<slug>
   const re = /https:\/\/www\.maisondelacreation\.org\/fr\/programmation\/evenements\/[a-z0-9-]+/gi
   return Array.from(new Set((html.match(re) || []).map((u) => u.trim())))
+}
+
+function parseSitemapUrls(xml) {
+  const re = /<loc>(https:\/\/www\.maisondelacreation\.org\/fr\/programmation\/evenements\/[a-z0-9-]+)<\/loc>/gi
+  const out = []
+  let m
+  while ((m = re.exec(xml))) out.push(m[1])
+  return Array.from(new Set(out))
 }
 
 function decodeEntities(s) {
@@ -156,9 +165,19 @@ function parseOccurrencesFromIcs(html) {
   return res
 }
 
-export async function loadMaisonDeLaCreation({ limitEvents = 40 } = {}) {
-  const listHtml = await (await fetch(LIST_URL, FETCH_OPTS)).text()
-  const urls = parseListUrls(listHtml).slice(0, limitEvents)
+export async function loadMaisonDeLaCreation({ limitEvents = 250 } = {}) {
+  // The list page is incomplete; sitemap is the most reliable discovery mechanism.
+  let urls = []
+  try {
+    const sitemapXml = await (await fetch(SITEMAP_URL, FETCH_OPTS)).text()
+    urls = parseSitemapUrls(sitemapXml)
+  } catch {
+    // fallback to list page
+    const listHtml = await (await fetch(LIST_URL, FETCH_OPTS)).text()
+    urls = parseListUrls(listHtml)
+  }
+
+  urls = urls.slice(0, limitEvents)
 
   const reps = []
 
