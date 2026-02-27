@@ -89,24 +89,42 @@ function parseTitle(html) {
 
 function parseImage(html) {
   const m = /<meta property="og:image" content="([^"]+)"/i.exec(html)?.[1]
-  return m ? toAbsUrl(m) : null
+  if (m) return toAbsUrl(decodeEntities(m))
+
+  // This site uses a transparent SVG placeholder as img src, and the real image is in srcset.
+  // Example: <img ... src="data:image/svg+xml..." srcset="https://maisondelacreation.imgix.net/...jpg?... 586w, ...">
+  const srcset = /<img[^>]+class="[^"]*object-cover[^"]*"[^>]+srcset="([^"]+)"/i.exec(html)?.[1]
+  if (srcset) {
+    const first = decodeEntities(srcset).split(',')[0]?.trim()
+    const url = first?.split(' ')[0]?.trim()
+    if (url?.startsWith('http')) return url
+  }
+
+  return null
 }
 
 function parseDescription(html) {
-  // Prefer main content paragraphs (meta description is generic on this site).
-  const body = /<div class="text-body">([\s\S]*?)<\/div>/i.exec(html)?.[1]
-  if (body) {
-    const ps = Array.from(body.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)).map((m) => stripTags(m[1]))
-    const joined = ps.filter(Boolean).slice(0, 3).join(' ')
-    if (joined && joined.length >= 80) return joined
-  }
+  // The meta description is generic. Prefer real paragraphs in <main>.
+  const main = /<main[\s\S]*?<\/main>/i.exec(html)?.[0]
+  const scope = main || html
+
+  const ps = Array.from(scope.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)).map((m) => stripTags(m[1]))
+
+  const cleaned = ps
+    .map((s) => stripTags(decodeEntities(s)))
+    .map((s) => s.replace(/^\s+|\s+$/g, ''))
+    .filter(Boolean)
+    // remove UI-ish / short / generic bits
+    .filter((s) => s.length >= 80)
+    .filter((s) => !/^saison\b/i.test(s))
+    .filter((s) => !/^centre culturel bruxelles/i.test(s))
+
+  if (cleaned.length) return cleaned.slice(0, 3).join(' ')
 
   const m = /<meta property="og:description" content="([^"]+)"/i.exec(html)?.[1]
   if (m) return stripTags(decodeEntities(m))
 
-  // Fallback: first paragraph
-  const p = /<p[^>]*>([\s\S]*?)<\/p>/i.exec(html)?.[1]
-  return p ? stripTags(p) : null
+  return null
 }
 
 function parseTheatreName(html) {
