@@ -17,7 +17,7 @@ function addDays(d, n) {
 
 // Deny keywords must be VERY specific to avoid false positives.
 // (We do NOT want to hide actual theatre just because of generic words.)
-const DENY_RE = /(lecteurs du soir|science\s*&\s*cocktails|exposition|vernissage|conf[ée]rence|table ronde|rencontre[- ]d[ée]bat|d[ée]bat\b|talk\b|masterclass|projection|cin[ée]ma|album\b|sortie de (son|leur) nouvel album|chanson francophone|concert\b|showcase|d[ée]dicace|voyage\b|bal\b|qualifier\b)/i
+const DENY_RE = /(lecteurs du soir|science\s*&\s*cocktails|exposition|vernissage|conf[ée]rence(?:\s+philosophique)?|table ronde|rencontre[- ]d[ée]bat|d[ée]bat\b|talk\b|masterclass|projection|cin[ée]ma|album\b|sortie de (son|leur) nouvel album|chanson francophone|concert\b|showcase|d[ée]dicace|voyage\b|bal\b|qualifier\b)/i
 const ALLOW_RE = /(th[ée]âtre|pi[eè]ce|com[ée]die|trag[ée]die|drame|seul en sc[eè]ne|stand-?up|humour|impro|marionn|spectacle|lecture-spectacle|cabaret|conte)/i
 
 const supabase = getSupabaseAdmin()
