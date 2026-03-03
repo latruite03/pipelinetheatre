@@ -90,11 +90,22 @@ function isTheatreEvent({ categories, title, description }) {
   const cats = (categories || []).map((c) => String(c || '').toLowerCase())
   const hay = `${title || ''} ${description || ''} ${(categories || []).join(' ')}`.toLowerCase()
 
-  // Hard deny: not theatre
-  const DENY_CATS = [
+  const hasTheatreSignal = cats.some((c) => /th[ée]âtre/.test(c)) || /th[ée]âtr/i.test(hay)
+
+  // Hard deny: never theatre
+  const HARD_DENY = [
     'concert',
     'science & cocktails',
     'science and cocktails',
+    'projection',
+    'ciné',
+    'cinema',
+    'dj',
+  ]
+  if (HARD_DENY.some((c) => cats.includes(c) || hay.includes(c))) return false
+
+  // Soft deny: only if no theatre signal
+  const SOFT_DENY = [
     'conférence',
     'conference',
     'rencontre',
@@ -102,17 +113,10 @@ function isTheatreEvent({ categories, title, description }) {
     'discussion',
     'atelier',
     'workshop',
-    'projection',
-    'ciné',
-    'cinema',
-    'dj',
   ]
-  if (DENY_CATS.some((c) => cats.includes(c) || hay.includes(c))) return false
+  if (!hasTheatreSignal && SOFT_DENY.some((c) => cats.includes(c) || hay.includes(c))) return false
 
-  // Require a positive theatre signal.
-  // Prefer explicit category “Théâtre”; fallback to keyword (incl. "théâtral").
-  if (cats.some((c) => /th[ée]âtre/.test(c))) return true
-  if (/th[ée]âtr/i.test(hay)) return true
+  if (hasTheatreSignal) return true
 
   // Default: strict => not theatre
   return false
@@ -153,14 +157,19 @@ function parseDateTimes(html) {
   const out = []
 
   // Strategy A: explicit date + time on the same line
-  // e.g. "je 12.02 · 20:30" or "25.02 · 20:30"
-  const reSameLine = /\b(\d{1,2})\.(\d{2})\s*(?:&nbsp;|\u00a0)?\s*[·•]\s*(\d{1,2}:\d{2})\b/g
+  // e.g. "je 12.02 · 20:30" or "ma 14.04.26 · 19:00"
+  const reSameLine = /\b(\d{1,2})\.(\d{2})(?:\.(\d{2,4}))?\s*(?:&nbsp;|\u00a0)?\s*[·•]\s*(\d{1,2}:\d{2})\b/g
   let m
   while ((m = reSameLine.exec(html))) {
     const dd = String(m[1]).padStart(2, '0')
     const mm = String(m[2]).padStart(2, '0')
-    const date = `${year}-${mm}-${dd}`
-    const heure = `${m[3].padStart(5, '0')}:00`
+    let y = year
+    if (m[3]) {
+      const raw = m[3]
+      y = raw.length === 2 ? `20${raw}` : raw
+    }
+    const date = `${y}-${mm}-${dd}`
+    const heure = `${m[4].padStart(5, '0')}:00`
     out.push({ date, heure })
   }
 
