@@ -110,9 +110,9 @@ function isTheatreEvent({ categories, title, description }) {
   if (DENY_CATS.some((c) => cats.includes(c) || hay.includes(c))) return false
 
   // Require a positive theatre signal.
-  // Prefer explicit category “Théâtre”; fallback to keyword.
+  // Prefer explicit category “Théâtre”; fallback to keyword (incl. "théâtral").
   if (cats.some((c) => /th[ée]âtre/.test(c))) return true
-  if (/\bth[ée]âtre\b/i.test(hay)) return true
+  if (/th[ée]âtr/i.test(hay)) return true
 
   // Default: strict => not theatre
   return false
